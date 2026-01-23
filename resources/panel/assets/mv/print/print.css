@@ -1,0 +1,15 @@
+.print-button-section {
+    padding: 20px;
+    display: flex;
+    justify-content: center
+}
+
+.print-button-section button {
+    padding: 5px 20px
+}
+
+@media print {
+    .print-button-section {
+        display: none;
+    }
+}

@@ -1,0 +1,37 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services;
+
+use App\Models\{{Name}};
+
+class {{Name}}Service extends BaseCrudService
+{
+    protected function getModelClass(): string
+    {
+        return {{Name}}::class;
+    }
+
+    protected function getCreateRules(): array
+    {
+        return [
+{{validationRules}}
+        ];
+    }
+
+    protected function getUpdateRules(): array
+    {
+        $rules = $this->getCreateRules();
+        // Add unique rules here if needed
+        // $rules['name'] = 'required|string|max:255|unique:{{lowerPlural}},name,' . request()->route('id');
+        return $rules;
+    }
+
+    protected function prepareCreateData(array $data): array
+    {
+        $data['status'] = $data['status'] ?? true;
+        return $data;
+    }
+}
+

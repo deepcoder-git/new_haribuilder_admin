@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Src\Admin\Modules\{{Name}};
+
+use App\Models\{{Name}};
+use App\Utility\Livewire\BaseViewComponent;
+
+class {{Name}}View extends BaseViewComponent
+{
+    protected function getModelClass(): string
+    {
+        return {{Name}}::class;
+    }
+
+    protected function getModelVariableName(): string
+    {
+        return '{{lowerName}}';
+    }
+
+    protected function getModuleName(): string
+    {
+        return '{{Name}}';
+    }
+
+    protected function getIndexRouteName(): string
+    {
+        return 'admin.{{lowerPlural}}.index';
+    }
+
+    protected function getViewRouteName(): string
+    {
+        return 'admin.{{lowerPlural}}.view';
+    }
+
+    protected function getRelations(): array
+    {
+        return [{{relations}}];
+    }
+
+    protected function getIcon(): string
+    {
+        return '{{icon}}';
+    }
+}
+

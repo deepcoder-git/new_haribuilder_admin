@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Favicon Test - Hari Builders</title>
+    
+    <!-- Test Favicon Links -->
+    <link rel="icon" type="image/svg+xml" href="/build/panel/images/logo/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/build/panel/images/logo/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/build/favicon_io/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/build/favicon_io/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/build/favicon_io/favicon-16x16.png" />
+    <link rel="manifest" href="/build/favicon_io/site.webmanifest" />
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .favicon-item {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #1e3a8a;
+        }
+        .favicon-item h3 {
+            margin: 0 0 10px 0;
+            color: #1e3a8a;
+        }
+        .favicon-item img {
+            max-width: 64px;
+            max-height: 64px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            padding: 5px;
+            background: white;
+        }
+        .status {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🔍 Favicon Test Page - Hari Builders</h1>
+        <p>This page tests if all favicon files are accessible and properly configured.</p>
+        
+        <div class="favicon-item">
+            <h3>SVG Favicon (Modern Browsers)</h3>
+            <p>Path: <code>/build/panel/images/logo/favicon.svg</code></p>
+            <img src="/build/panel/images/logo/favicon.svg" alt="SVG Favicon" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>ICO Favicon (Fallback)</h3>
+            <p>Path: <code>/build/panel/images/logo/favicon.ico</code></p>
+            <img src="/build/panel/images/logo/favicon.ico" alt="ICO Favicon" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>Apple Touch Icon (iOS)</h3>
+            <p>Path: <code>/build/favicon_io/apple-touch-icon.png</code></p>
+            <img src="/build/favicon_io/apple-touch-icon.png" alt="Apple Touch Icon" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>Favicon 32x32</h3>
+            <p>Path: <code>/build/favicon_io/favicon-32x32.png</code></p>
+            <img src="/build/favicon_io/favicon-32x32.png" alt="32x32 Favicon" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>Favicon 16x16</h3>
+            <p>Path: <code>/build/favicon_io/favicon-16x16.png</code></p>
+            <img src="/build/favicon_io/favicon-16x16.png" alt="16x16 Favicon" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>Android Chrome 192x192</h3>
+            <p>Path: <code>/build/favicon_io/android-chrome-192x192.png</code></p>
+            <img src="/build/favicon_io/android-chrome-192x192.png" alt="Android 192" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>Android Chrome 512x512</h3>
+            <p>Path: <code>/build/favicon_io/android-chrome-512x512.png</code></p>
+            <img src="/build/favicon_io/android-chrome-512x512.png" alt="Android 512" onerror="this.parentElement.innerHTML += '<span class=\'status error\'>❌ Not Found</span>'" onload="this.parentElement.innerHTML += '<span class=\'status success\'>✅ Loaded</span>'">
+        </div>
+        
+        <div class="favicon-item">
+            <h3>Web Manifest</h3>
+            <p>Path: <code>/build/favicon_io/site.webmanifest</code></p>
+            <p id="manifest-status">Checking...</p>
+        </div>
+        
+        <hr style="margin: 30px 0;">
+        
+        <h2>📋 Test Results Summary</h2>
+        <p><strong>Instructions:</strong></p>
+        <ul>
+            <li>Check the browser tab - you should see the favicon icon</li>
+            <li>All images above should display with ✅ status</li>
+            <li>If any show ❌, check file paths and permissions</li>
+            <li>Clear browser cache if old favicon persists</li>
+        </ul>
+    </div>
+    
+    <script>
+        // Test web manifest
+        fetch('/build/favicon_io/site.webmanifest')
+            .then(response => {
+                if (response.ok) {
+                    return response.json();
+                }
+                throw new Error('Manifest not found');
+            })
+            .then(data => {
+                document.getElementById('manifest-status').innerHTML = 
+                    '<span class="status success">✅ Loaded</span><br><pre style="margin-top:10px; background:#f4f4f4; padding:10px; border-radius:4px; overflow:auto;">' + 
+                    JSON.stringify(data, null, 2) + '</pre>';
+            })
+            .catch(error => {
+                document.getElementById('manifest-status').innerHTML = 
+                    '<span class="status error">❌ Not Found: ' + error.message + '</span>';
+            });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,44 @@
+<x-crud-layout-inline title="{{Name}} Management">
+    <x-slot name="formContent">
+        <div class="row">
+            <div class="col-md-6 mb-5">
+                <label for="name" class="form-label required d-flex align-items-center">
+                    <i class="fa-solid fa-tag fs-4 text-primary me-2"></i>
+                    Name
+                </label>
+                <input type="text" 
+                       id="name"
+                       wire:model="name"
+                       class="form-control form-control-solid"
+                       placeholder="Enter name"/>
+                @error('name') 
+                    <div class="text-danger mt-1">{{ $message }}</div> 
+                @enderror
+            </div>
+
+            <div class="col-md-6 mb-5">
+                <label class="form-label d-flex align-items-center">Status</label>
+                <div class="form-check form-switch form-check-custom form-check-solid form-check-success">
+                    <input class="form-check-input" 
+                           type="checkbox" 
+                           id="status"
+                           wire:model="status"
+                           style="cursor: pointer;"/>
+                    <label class="form-check-label fw-semibold" for="status">
+                        <span class="text-gray-700">Status:</span>
+                        <span class="ms-2" x-text="$wire.status ? 'Active' : 'Inactive'" 
+                              :class="$wire.status ? 'text-success' : 'text-danger'">
+                            {{ $status ? 'Active' : 'Inactive' }}
+                        </span>
+                    </label>
+                </div>
+                @error('status') 
+                    <div class="text-danger mt-1">{{ $message }}</div> 
+                @enderror
+            </div>
+        </div>
+    </x-slot>
+
+    <x-crud-table :items="$items" :columns="$columns" />
+</x-crud-layout-inline>
+

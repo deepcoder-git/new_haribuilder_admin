@@ -1,0 +1,110 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Src\Admin\Modules\{{Name}};
+
+use App\Models\{{Name}};
+use App\Utility\Livewire\BaseCrudComponent;
+use Illuminate\Contracts\View\View;
+use Livewire\WithFileUploads;
+
+class {{Name}}Management extends BaseCrudComponent
+{
+    use WithFileUploads;
+
+{{properties}}
+
+    protected function getModelClass(): string
+    {
+        return {{Name}}::class;
+    }
+
+    protected function getViewName(): string
+    {
+        return 'admin::{{Name}}.views.management';
+    }
+
+    protected function getValidationRules(): array
+    {
+        $rules = [
+{{validationRules}}
+        ];
+
+        return $rules;
+    }
+
+    protected function getFormData(): array
+    {
+        return [
+{{formData}}
+        ];
+    }
+
+    protected function setFormData($model): void
+    {
+{{setFormData}}
+    }
+
+    protected function resetForm(): void
+    {
+        {{resetForm}}
+    }
+
+    protected function applySearch($query)
+    {
+        return $query->where(function ($q) {
+{{searchConditions}}
+        });
+    }
+
+    protected function getCreateSuccessMessage(): string
+    {
+        return '{{Name}} created successfully!';
+    }
+
+    protected function getUpdateSuccessMessage(): string
+    {
+        return '{{Name}} updated successfully!';
+    }
+
+    protected function getDeleteSuccessMessage(): string
+    {
+        return '{{Name}} deleted successfully!';
+    }
+
+    public function getColumnsProperty(): array
+    {
+        return [
+{{columns}}
+        ];
+    }
+
+    public function renderStatus($item): string
+    {
+        if ($item->status) {
+            return '<span class="badge badge-light-success">Active</span>';
+        }
+        return '<span class="badge badge-light-danger">Inactive</span>';
+    }
+
+    public function render(): View
+    {
+        try {
+            $breadcrumbUrl = route('admin.{{lowerPlural}}.index');
+        } catch (\Exception $e) {
+            $breadcrumbUrl = '#';
+        }
+
+        return view($this->getViewName(), [
+            'items' => $this->items,
+            'columns' => $this->columns ?? [],
+            'sortField' => $this->sortField,
+            'sortDirection' => $this->sortDirection,
+        ])->layout('panel::layout.app', [
+            'title' => '{{Name}} Management',
+            'breadcrumb' => [['{{Name}} Management', $breadcrumbUrl]],
+        ]);
+    }
+}
+
