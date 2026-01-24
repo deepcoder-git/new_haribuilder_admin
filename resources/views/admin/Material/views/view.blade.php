@@ -120,7 +120,7 @@
     </div>
 </div>
 
-@push('footer')
+@push('header')
 <style>
 .material-images-grid {
     display: grid;
@@ -169,24 +169,41 @@
     }
 }
 </style>
+
+@endpush
+
+@push('footer')
 <script>
 (function() {
+    let bound = false;
     function initImageZoom() {
+        if (bound) return;
+        bound = true;
+
         document.addEventListener('click', function(e) {
             const img = e.target.closest('.material-image-zoom');
-            if (img) {
-                e.preventDefault();
-                const imageUrl = img.getAttribute('data-image-url');
-                const materialName = img.getAttribute('data-material-name');
-                
-                if (imageUrl) {
-                    document.getElementById('zoomedImage').src = imageUrl;
-                    document.getElementById('zoomedImage').alt = materialName || 'Material Image';
-                    document.getElementById('imageZoomModalTitle').textContent = materialName || 'Material Image';
-                    
-                    const modal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
-                    modal.show();
-                }
+            if (!img) return;
+
+            e.preventDefault();
+            const imageUrl = img.getAttribute('data-image-url');
+            const materialName = img.getAttribute('data-material-name');
+
+            if (!imageUrl || typeof bootstrap === 'undefined') return;
+
+            const zoomed = document.getElementById('zoomedImage');
+            const title = document.getElementById('imageZoomModalTitle');
+            const modalEl = document.getElementById('imageZoomModal');
+
+            if (zoomed) {
+                zoomed.src = imageUrl;
+                zoomed.alt = materialName || 'Material Image';
+            }
+            if (title) {
+                title.textContent = materialName || 'Material Image';
+            }
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
             }
         });
     }

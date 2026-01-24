@@ -91,11 +91,17 @@
                             </td>
                             <td>
                                 <div class="form-check form-switch form-check-custom form-check-solid d-inline-flex">
+                                    @php
+                                        // Disable status toggle when category is already used by products/materials
+                                        $hasProductsOrMaterials = (($category->product_count ?? 0) > 0) || (($category->material_count ?? 0) > 0);
+                                    @endphp
                                     <input class="form-check-input" 
                                            type="checkbox" 
                                            wire:change="toggleStatus({{ $category->id }})"
                                            @if($category->status) checked @endif
-                                           style="cursor: pointer; width: 40px; height: 20px;"
+                                           @if($hasProductsOrMaterials) disabled @endif
+                                           style="cursor: {{ $hasProductsOrMaterials ? 'not-allowed' : 'pointer' }}; width: 40px; height: 20px; opacity: {{ $hasProductsOrMaterials ? '0.6' : '1' }};"
+                                           title="{{ $hasProductsOrMaterials ? 'Cannot change status: Category is assigned to products/materials' : 'Toggle status' }}"
                                            wire:loading.attr="disabled">
                                     <span wire:loading wire:target="toggleStatus({{ $category->id }})" class="spinner-border spinner-border-sm ms-2"></span>
                                 </div>

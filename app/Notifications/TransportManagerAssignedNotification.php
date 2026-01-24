@@ -28,19 +28,16 @@ class TransportManagerAssignedNotification extends Notification
         if (!$this->order->relationLoaded('site')) {
             $this->order->load('site');
         }
-        if (!$this->order->relationLoaded('product')) {
-            $this->order->load('product');
-        }
         
         $siteName = $this->order->site->name ?? 'Unknown Site';
-        $productName = $this->order->product->product_name ?? 'Unknown Product';
+        $productName = 'Mixed Products';
         
         return [
             'type' => 'transport_manager_assigned',
             'order_id' => $this->order->id,
             'title' => 'Order Assigned to You',
-            'message' => "You have been assigned to Order #{$this->order->id} for {$siteName}. Product: {$productName}, Quantity: {$this->order->quantity}. Click to view order details and manage delivery.",
-            'link' => route('admin.deliveries.index') . '?order_id=' . $this->order->id . '&edit=1',
+            'message' => "You have been assigned to Order #{$this->order->id} for {$siteName}. {$productName}.",
+            'link' => route('admin.orders.view', $this->order->id),
         ];
     }
 }

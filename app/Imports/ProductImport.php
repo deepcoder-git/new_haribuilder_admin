@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
 use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
-use Illuminate\Support\Str;
 
 class ProductImport implements ToCollection, WithHeadingRow, WithCustomCsvSettings
 {
@@ -204,13 +203,9 @@ class ProductImport implements ToCollection, WithHeadingRow, WithCustomCsvSettin
             
             $product = $existingProduct;
         } else {
-            // Generate unique slug
-            $slug = $this->generateUniqueSlug($productName);
-            
             // Create new product
             $product = Product::create([
                 'product_name' => $productName,
-                'slug' => $slug,
                 'category_id' => $category->id,
                 'store' => $store->value,
                 'unit_type' => $unitType,
@@ -344,28 +339,6 @@ class ProductImport implements ToCollection, WithHeadingRow, WithCustomCsvSettin
         }
         
         return 1; // Default to 1 (product)
-    }
-
-    protected function generateUniqueSlug(string $productName): string
-    {
-        $slug = Str::slug($productName);
-        $originalSlug = $slug;
-        $counter = 1;
-
-        // Check if slug already exists, if so append counter
-        while (Product::where('slug', $slug)->exists()) {
-            $slug = $originalSlug . '-' . $counter;
-            $counter++;
-            
-            // Prevent infinite loop (max 10000 attempts)
-            if ($counter > 10000) {
-                // Use timestamp as fallback
-                $slug = $originalSlug . '-' . time();
-                break;
-            }
-        }
-
-        return $slug;
     }
 
     public function getCsvSettings(): array

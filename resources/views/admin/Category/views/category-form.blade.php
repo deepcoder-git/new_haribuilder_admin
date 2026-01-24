@@ -27,20 +27,15 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
-                        Status
+                        Status <span class="text-danger">*</span>
                     </label>
-                    <div class="form-check form-switch form-check-custom form-check-solid form-check-success d-flex align-items-center" style="height: 44px;">
-                        <input class="form-check-input" 
-                               type="checkbox" 
-                               wire:model="status"
-                               style="cursor: pointer; width: 40px; height: 20px;"/>
-                        <label class="form-check-label fw-semibold ms-3" style="margin-top: 0;">
-                            <span class="text-gray-700">Status:</span>
-                            <span class="ms-2 {{ $status ? 'text-success' : 'text-danger' }}">
-                                {{ $status ? 'Active' : 'Inactive' }}
-                            </span>
-                        </label>
-                    </div>
+                    <select wire:model.blur="status"
+                            class="form-select form-select-solid @error('status') is-invalid @enderror"
+                            style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;">
+                        <option value="">Select Status</option>
+                        <option value="1">Active</option>
+                        <option value="0">Inactive</option>
+                    </select>
                     @error('status') 
                         <div class="text-danger small mt-1 d-flex align-items-center">
                             <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>

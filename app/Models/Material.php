@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Utility\Enums\ProductTypeEnum;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Material Model
  * 
- * Materials are stored in the products table with is_product = 0
+ * Materials are stored in the products table.
+ * is_product is used to indicate how a material behaves:
+ * - 0: Material Only
+ * - 1: Material As Product
+ * - 2: Material + Product
  * This model provides a Material interface while using the Product model
  */
 class Material extends Product
@@ -25,19 +30,22 @@ class Material extends Product
 
     /**
      * Boot the model.
-     * Automatically filter by is_product = 0 for all queries
+     * Automatically filter by type = material for all queries
      */
     protected static function boot()
     {
         parent::boot();
 
         static::addGlobalScope('material', function ($builder) {
-            $builder->whereIn('is_product', [0, 2]);
+            // Only records created/managed as materials
+            $builder->where('type', ProductTypeEnum::Material->value);
         });
 
-        // Set is_product = 0 when creating new materials
+        // Default to "Material Only" when creating, but do not override user selection
         static::creating(function ($material) {
-            $material->is_product = 0;
+            if ($material->is_product === null) {
+                $material->is_product = 0;
+            }
         });
     }
 

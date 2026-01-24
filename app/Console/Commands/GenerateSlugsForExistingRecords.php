@@ -8,6 +8,7 @@ use App\Models\Site;
 use App\Models\Category;
 use App\Models\Supplier;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class GenerateSlugsForExistingRecords extends Command
 {
@@ -20,7 +21,11 @@ class GenerateSlugsForExistingRecords extends Command
         $model = $this->option('model');
 
         if ($model === 'all' || $model === 'product') {
+            if (Schema::hasTable('products') && Schema::hasColumn('products', 'slug')) {
             $this->generateSlugsForModel(Product::class, 'product_name', 'products');
+            } else {
+                $this->info('Skipping products: slug column does not exist.');
+            }
         }
 
         if ($model === 'all' || $model === 'site') {

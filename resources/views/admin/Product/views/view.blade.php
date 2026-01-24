@@ -10,22 +10,27 @@
         <div class="card-body pt-0">
             <div class="row">
                 <div class="col-12">
-                    {{-- <div class="card shadow-sm"> --}}
                         <div class="card-body p-8">
                             <div class="row">
                                 <div class="col-md-5 mb-5 mb-md-0 pe-md-5">
                                     <label class="text-gray-600 fw-semibold fs-6 mb-3 d-block">Images</label>
                                     @php
+                                        use Illuminate\Support\Facades\Storage;
+
                                         $productImages = [];
-                                        foreach($product->productImages as $productImage) {
+                                        foreach ($product->productImages as $productImage) {
                                             $productImages[] = $productImage->image_url;
                                         }
-                                        if(empty($productImages) && $product->image) {
-                                            $productImages[] = Storage::url($product->image);
+                                        // Fallback to legacy products.image (supports string/JSON via image_paths accessor)
+                                        if (empty($productImages)) {
+                                            foreach (($product->image_paths ?? []) as $path) {
+                                                if (!empty($path)) {
+                                                    $productImages[] = Storage::url($path);
+                                                }
+                                            }
                                         }
                                     @endphp
                                     @if(!empty($productImages))
-                                        {{-- Main Large Image Display --}}
                                         <div class="product-main-image-container mb-3">
                                             <img src="{{ $productImages[0] }}" 
                                                  alt="{{ $product->product_name ?? 'Product Image' }}" 
@@ -34,7 +39,6 @@
                                                  data-product-name="{{ $product->product_name ?? 'Product Image' }}">
                                         </div>
                                         
-                                        {{-- Thumbnail Grid for Additional Images --}}
                                         @if(count($productImages) > 1)
                                             <div class="product-thumbnails-grid">
                                                 @foreach($productImages as $index => $imgUrl)
@@ -43,9 +47,7 @@
                                                          data-product-name="{{ htmlspecialchars($product->product_name ?? 'Product Image', ENT_QUOTES) }}">
                                                         <img src="{{ $imgUrl }}" 
                                                              alt="Product image {{ $index + 1 }}" 
-                                                             class="product-thumbnail"
-                                                             data-image-url="{{ $imgUrl }}"
-                                                             data-product-name="{{ $product->product_name ?? 'Product Image' }}">
+                                                             class="product-thumbnail">
                                                     </div>
                                                 @endforeach
                                             </div>
@@ -112,7 +114,6 @@
                                 </div>
                             </div>
                         </div>
-                    {{-- </div> --}}
                 </div>
             </div>
         </div>
@@ -165,7 +166,25 @@
                                     <span class="text-gray-600">{{ $material->category->name ?? 'N/A' }}</span>
                                 </td>
                                 <td class="text-center">
-                                    <span class="text-gray-800 fw-bold">{{ $material->pivot->quantity ?? 'N/A' }}</span>
+                                    @php
+                                        $qtyRaw = $material->pivot->quantity ?? null;
+                                        $qtyDisplay = 'N/A';
+                                        if ($qtyRaw !== null && $qtyRaw !== '') {
+                                            if (is_numeric($qtyRaw)) {
+                                                $qtyFloat = (float) $qtyRaw;
+                                                // If it's effectively an integer (4.0 / 4.00), display as 4
+                                                if (abs($qtyFloat - round($qtyFloat)) < 0.0000001) {
+                                                    $qtyDisplay = (string) (int) round($qtyFloat);
+                                                } else {
+                                                    // Otherwise trim trailing zeros (e.g. 4.50 -> 4.5)
+                                                    $qtyDisplay = rtrim(rtrim(number_format($qtyFloat, 4, '.', ''), '0'), '.');
+                                                }
+                                            } else {
+                                                $qtyDisplay = (string) $qtyRaw;
+                                            }
+                                        }
+                                    @endphp
+                                    <span class="text-gray-800 fw-bold">{{ $qtyDisplay }}</span>
                                 </td>
                                 <td class="text-center">
                                     <span class="badge badge-light-primary">{{ $material->pivot->unit_type ?? 'N/A' }}</span>
@@ -196,7 +215,7 @@
     </div>
 </div>
 
-@push('footer')
+@push('header')
 <style>
 /* Main Large Image Container */
 .product-main-image-container {
@@ -305,18 +324,26 @@
     }
 }
 </style>
+
+@endpush
+
+@push('footer')
 <script>
 (function() {
     function initImageZoom() {
-        // Handle thumbnail clicks to change main image
-        document.querySelectorAll('.product-thumbnail-item').forEach(thumbnailItem => {
-            thumbnailItem.addEventListener('click', function(e) {
+        if (window.__productViewImageInit) return;
+        window.__productViewImageInit = true;
+
+        // Event delegation: stable on refresh and avoids duplicate listeners
+        document.addEventListener('click', function(e) {
+            const thumb = e.target.closest('.product-thumbnail-item');
+            if (thumb) {
                 e.preventDefault();
                 e.stopPropagation();
-                
-                const imageUrl = this.getAttribute('data-image-url');
-                const productName = this.getAttribute('data-product-name');
-                
+
+                const imageUrl = thumb.getAttribute('data-image-url');
+                const productName = thumb.getAttribute('data-product-name');
+
                 if (imageUrl) {
                     const mainImage = document.querySelector('.product-main-image');
                     if (mainImage) {
@@ -325,32 +352,36 @@
                         mainImage.setAttribute('data-product-name', productName);
                         mainImage.alt = productName || 'Product Image';
                     }
-                    
-                    // Update active thumbnail
-                    document.querySelectorAll('.product-thumbnail-item').forEach(item => {
-                        item.classList.remove('active');
-                    });
-                    this.classList.add('active');
+
+                    document.querySelectorAll('.product-thumbnail-item').forEach(item => item.classList.remove('active'));
+                    thumb.classList.add('active');
                 }
-            });
-        });
-        
-        // Handle main image click to open zoom modal
-        document.addEventListener('click', function(e) {
+                return;
+            }
+
             const img = e.target.closest('.product-image-zoom');
-            if (img) {
-                e.preventDefault();
-                const imageUrl = img.getAttribute('data-image-url');
-                const productName = img.getAttribute('data-product-name');
-                
-                if (imageUrl) {
-                    document.getElementById('zoomedImage').src = imageUrl;
-                    document.getElementById('zoomedImage').alt = productName || 'Product Image';
-                    document.getElementById('imageZoomModalTitle').textContent = productName || 'Product Image';
-                    
-                    const modal = new bootstrap.Modal(document.getElementById('imageZoomModal'));
-                    modal.show();
-                }
+            if (!img) return;
+
+            e.preventDefault();
+            const imageUrl = img.getAttribute('data-image-url');
+            const productName = img.getAttribute('data-product-name');
+
+            if (!imageUrl || typeof bootstrap === 'undefined') return;
+
+            const zoomed = document.getElementById('zoomedImage');
+            const title = document.getElementById('imageZoomModalTitle');
+            const modalEl = document.getElementById('imageZoomModal');
+
+            if (zoomed) {
+                zoomed.src = imageUrl;
+                zoomed.alt = productName || 'Product Image';
+            }
+            if (title) {
+                title.textContent = productName || 'Product Image';
+            }
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
             }
         });
     }

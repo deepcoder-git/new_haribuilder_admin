@@ -9,34 +9,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Utility\Traits\HasSlug;
 use App\Utility\Enums\ProductTypeEnum;
 use App\Utility\Enums\StoreEnum;
 
 class Product extends Model
 {
-    use HasFactory, HasSlug;
+    use HasFactory;
 
     protected $fillable = [
         'status',
         'product_name',
-        'slug',
         'category_id',
         'store',
         'store_manager_id',
         'unit_type',
-        'country_of_manufacture',
         'image',
         'low_stock_threshold',
         'available_qty',
         'type',
         'is_product'
     ];
-
-    protected static function getSlugSourceField(): string
-    {
-        return 'product_name';
-    }
 
     protected $casts = [
         'status' => 'boolean',

@@ -289,14 +289,15 @@
                                 wire:click="toggleStoreDropdown"
                                 wire:loading.attr="disabled"
                                 class="form-control form-control-solid d-flex align-items-center justify-content-between @error('store') is-invalid @enderror"
-                                style="height: 44px; text-align: left; background: white; border: 1px solid {{ $hasStoreError ? '#ef4444' : '#e5e7eb' }}; border-radius: 0.5rem; padding: 0.5rem 1rem; width: 100%;">
+                                @if($isEditMode) disabled @endif
+                                style="height: 44px; text-align: left; background: {{ $isEditMode ? '#f9fafb' : 'white' }}; border: 1px solid {{ $hasStoreError ? '#ef4444' : '#e5e7eb' }}; border-radius: 0.5rem; padding: 0.5rem 1rem; width: 100%; {{ $isEditMode ? 'cursor: not-allowed; opacity: 0.85;' : '' }}">
                             <span class="text-truncate" style="flex: 1; overflow: hidden; text-overflow: ellipsis;">
                                 {{ $selectedStoreName }}
                             </span>
                             <i class="fa-solid fa-chevron-{{ $storeDropdownOpen ? 'up' : 'down' }} ms-2" style="flex-shrink: 0; font-size: 0.75rem; color: #6b7280;"></i>
                         </button>
                         
-                        @if($storeDropdownOpen)
+                        @if($storeDropdownOpen && !$isEditMode)
                             <div class="position-absolute bg-white border rounded shadow-lg" 
                                  style="top: 100%; left: 0; right: 0; z-index: 1000; margin-top: 0.25rem; max-height: 300px; display: flex; flex-direction: column; min-width: 100%; width: 100%;"
                                  wire:click.stop
@@ -562,7 +563,10 @@
             </div>
             @endif
             
-            <!-- Materials Section (Optional - quantity validation only applies when material is selected) -->
+            {{-- Materials selection rules:
+                 - In Product module create/edit for real products: allowed
+                 - When editing a "material record" shown in Product listing: hide completely --}}
+            @if(!$isEditMode || $type === \App\Utility\Enums\ProductTypeEnum::Product->value)
             <div class="row g-3 mb-3" wire:key="materials-section-{{ $store }}" style="overflow: visible;">
                 <div class="col-md-12" style="overflow: visible;">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
@@ -623,7 +627,8 @@
                                                     $isDropdownOpen = isset($materialDropdownOpen[$index]) && $materialDropdownOpen[$index] === true && !($isEditMode && $type !== \App\Utility\Enums\ProductTypeEnum::Product->value);
                                                 @endphp
                                                 @if($isDropdownOpen)
-                                                    <div class="position-fixed bg-white border rounded shadow-lg material-dropdown-overlay" 
+                                                    <div class="position-fixed bg-white border rounded shadow-lg material-dropdown-overlay"
+                                                         wire:key="material-dropdown-overlay-{{ $index }}"
                                                          style="z-index: 999999; margin-top: 0.25rem; max-height: 300px; display: flex; flex-direction: column; width: 300px; min-width: 300px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);"
                                                          wire:click.stop
                                                          x-data="{ 
@@ -649,17 +654,21 @@
                                                                      const rect = button.getBoundingClientRect();
                                                                      const viewportHeight = window.innerHeight;
                                                                      const spaceBelow = viewportHeight - rect.bottom;
+                                                                     const spaceAbove = rect.top;
+                                                                     const dropdownHeight = 300;
                                                                      
-                                                                     // Position dropdown below button
+                                                                     // Fix dropdown height (avoid resizing while scrolling results)
+                                                                     $el.style.height = dropdownHeight + 'px';
+                                                                     $el.style.maxHeight = dropdownHeight + 'px';
+                                                                     
+                                                                     // Position dropdown (prefer below; if not enough space, place above)
                                                                      $el.style.left = rect.left + 'px';
-                                                                     $el.style.top = (rect.bottom + 4) + 'px';
                                                                      $el.style.width = rect.width + 'px';
-                                                                     
-                                                                     // Adjust max-height based on available space
-                                                                     if (spaceBelow < 300) {
-                                                                         $el.style.maxHeight = Math.max(150, spaceBelow - 20) + 'px';
+                                                                    
+                                                                     if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+                                                                         $el.style.top = Math.max(8, rect.top - dropdownHeight - 4) + 'px';
                                                                      } else {
-                                                                         $el.style.maxHeight = '300px';
+                                                                         $el.style.top = (rect.bottom + 4) + 'px';
                                                                      }
                                                                  }
                                                              }
@@ -672,10 +681,9 @@
                                                             <div class="position-relative">
                                                                 <i class="fa-solid fa-magnifying-glass position-absolute" style="left: 0.75rem; top: 50%; transform: translateY(-50%); color: #6b7280; font-size: 0.875rem;"></i>
                                                                 <input type="text"
-                                                                       wire:model="materialSearch.{{ $index }}"
-                                                                       wire:keyup.debounce.300ms="handleMaterialSearch($event.target.value, 'materialSearch.{{ $index }}')"
+                                                                       wire:model.debounce.300ms="materialSearch.{{ $index }}"
                                                                        wire:key="material-search-{{ $index }}"
-                                                                       placeholder="Q Search materials..."
+                                                                       placeholder="Search materials..."
                                                                        class="form-control form-control-solid"
                                                                        style="padding-left: 2.5rem; height: 38px; border: 1px solid #e5e7eb; border-radius: 0.375rem;"
                                                                        autofocus
@@ -683,7 +691,8 @@
                                                             </div>
                                                         </div>
                                                         <div id="material-dropdown-{{ $index }}"
-                                                             style="overflow-y: auto; max-height: 250px; flex: 1;"
+                                                             wire:key="material-dropdown-list-{{ $index }}"
+                                                             style="overflow-y: auto; overflow-x: hidden; max-height: 250px; flex: 1 1 auto; min-height: 0;"
                                                              x-on:scroll="handleScroll($event)">
                                                             @if(isset($materialLoading[$index]) && $materialLoading[$index] && empty($materialSearchResults[$index] ?? []))
                                                                 <div class="text-center py-4 text-muted" style="font-size: 0.875rem;">
@@ -814,7 +823,7 @@
                                         @php
                                             $currentMaterialCount = count($materials);
                                             $canAddMore = true;
-                                            $maxMaterials = 999; // Large number for Workshop store
+                                            $maxMaterials = 999; // Large number for Warehouse store
                                             
                                             if ($store === \App\Utility\Enums\StoreEnum::HardwareStore->value || 
                                                 $store === \App\Utility\Enums\StoreEnum::LPO->value) {
@@ -854,6 +863,7 @@
                     @enderror
                 </div>
             </div>
+            @endif
         </div>
         <div class="card-footer border-0 pt-3 bg-white">
             <div class="d-flex justify-content-end gap-2">
@@ -1041,43 +1051,6 @@
         /* Ensure dropdown appears properly without being cut */
         .table td .position-absolute {
             position: absolute !important;
-        }
-        /* Material dropdown specific styling */
-        .material-dropdown {
-            position: absolute !important;
-            z-index: 99999 !important;
-        }
-        /* Material dropdown content scrollbar styling */
-        .material-dropdown-content {
-            overflow-y: auto !important;
-            overflow-x: hidden !important;
-        }
-        .material-dropdown-content::-webkit-scrollbar {
-            width: 8px;
-        }
-        .material-dropdown-content::-webkit-scrollbar-track {
-            background: #f1f1f1;
-            border-radius: 4px;
-        }
-        .material-dropdown-content::-webkit-scrollbar-thumb {
-            background: #c1c1c1;
-            border-radius: 4px;
-        }
-        .material-dropdown-content::-webkit-scrollbar-thumb:hover {
-            background: #a8a8a8;
-        }
-        /* Ensure card body allows dropdown overflow */
-        .card-body {
-            overflow: visible !important;
-        }
-        /* Ensure all parent containers allow overflow */
-        .card {
-            overflow: visible !important;
-        }
-        /* Fix table container overflow */
-        .table-responsive {
-            overflow-x: auto !important;
-            overflow-y: visible !important;
         }
         @media (max-width: 768px) {
             .card-body {

@@ -21,14 +21,12 @@ class Stock extends Model
         'reference_id',
         'reference_type',
         'notes',
-        'metadata',
         'status'
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'status' => 'boolean',
-        'metadata' => 'array'
     ];
 
     public function product(): BelongsTo

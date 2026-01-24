@@ -1,32 +1,31 @@
 <div>
     <div class="card shadow-sm border-0">
-        <div class="card-header border-0 bg-white px-3 py-2">
+        <div class="card-header border-0 bg-white px-4 py-3">
             <div class="card-title w-100 mb-0">
-                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                <div class="d-flex align-items-center gap-3 flex-wrap" style="align-items: center;">
                     @if($product)
-                        <div class="d-flex align-items-center gap-3">
-                            <h4 class="mb-0 fw-bold text-gray-800">{{ $product->product_name }}</h4>
-                            <span class="badge badge-light-primary">Current Stock: {{ formatQty($product->total_stock_quantity) }}</span>
-                        </div>
+                        <span class="badge badge-light-primary d-inline-flex align-items-center" style="font-weight: 600; font-size: 0.875rem; height: 44px; padding: 0 1rem; white-space: nowrap;">
+                            <span class="fw-bold me-2">{{ $product->product_name }}</span>
+                            <i class="fa-solid fa-box me-1"></i>
+                            Current Stock: {{ formatQty($product->total_stock_quantity) }}
+                        </span>
                     @else
-                        <h4 class="mb-0 fw-bold text-gray-800">Stock Entries</h4>
+                        <h4 class="mb-0 fw-bold text-gray-800 fs-4" style="line-height: 44px;">Stock Entries</h4>
                     @endif
-                    <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <div class="d-flex align-items-center position-relative" style="min-width: 260px; max-width: 360px;">
-                            <i class="fa-solid fa-magnifying-glass position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #6b7280;"></i>
-                            <input type="text"
-                                   wire:model.live.debounce.300ms="search"
-                                   class="form-control form-control-solid"
-                                   placeholder="Search by product name..."
-                                   style="border-radius: 0.5rem; height: 44px; padding-left: 3rem;">
-                        </div>
-                        <select wire:model.live="adjustmentType" class="form-select form-select-solid" style="border-radius: 0.5rem; height: 44px; min-width: 150px;">
-                            <option value="">All Types</option>
-                            <option value="in">Stock In (+)</option>
-                            <option value="out">Stock Out (-)</option>
-                            <option value="adjustment">Adjustment (=)</option>
-                        </select>
+                    <div class="d-flex align-items-center position-relative" style="min-width: 250px; flex: 1 1 300px; max-width: 100%;">
+                        <i class="fa-solid fa-magnifying-glass position-absolute" style="left: 1rem; top: 50%; transform: translateY(-50%); color: #6b7280; z-index: 1;"></i>
+                        <input type="text"
+                               wire:model.live.debounce.300ms="search"
+                               class="form-control form-control-solid"
+                               placeholder="Search by product name..."
+                               style="border-radius: 0.5rem; height: 44px; padding-left: 3rem; width: 100%;">
                     </div>
+                    <select wire:model.live="adjustmentType" class="form-select form-select-solid" style="border-radius: 0.5rem; height: 44px; min-width: 160px; flex-shrink: 0;">
+                        <option value="">All Types</option>
+                        <option value="in">Stock In (+)</option>
+                        <option value="out">Stock Out (-)</option>
+                        <option value="adjustment">Adjustment (=)</option>
+                    </select>
                 </div>
             </div>
         </div>
@@ -35,16 +34,15 @@
             <div class="table-responsive">
                 <table class="table align-middle table-row-dashed mb-0" style="font-size: 0.9375rem;">
                     <thead>
-                        <tr class="fw-bold text-uppercase" style="border-bottom: 2px solid #1e3a8a; background: #ffffff;">
-                            <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">DATE & TIME</th>
+                        <tr class="fw-bold text-uppercase" style="border-bottom: 2px solid #e5e7eb; background: #f9fafb;">
+                            <th class="text-start" style="padding: 1rem 0.75rem; color: #374151; font-size: 0.8125rem; font-weight: 600;">DATE & TIME</th>
                             @if(!$product)
-                                <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">PRODUCT</th>
+                                <th class="text-start" style="padding: 1rem 0.75rem; color: #374151; font-size: 0.8125rem; font-weight: 600;">PRODUCT</th>
                             @endif
-                            <th class="text-center" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">TYPE</th>
-                            <th class="text-center" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">QUANTITY</th>
-                            <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">NOTES</th>
-                            <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">REFERENCE</th>
-                            <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">SITE</th>
+                            <th class="text-center" style="padding: 1rem 0.75rem; color: #374151; font-size: 0.8125rem; font-weight: 600;">TYPE</th>
+                            <th class="text-center" style="padding: 1rem 0.75rem; color: #374151; font-size: 0.8125rem; font-weight: 600;">QUANTITY</th>
+                            <th class="text-start" style="padding: 1rem 0.75rem; color: #374151; font-size: 0.8125rem; font-weight: 600;">NOTES</th>
+                            <th class="text-start" style="padding: 1rem 0.75rem; color: #374151; font-size: 0.8125rem; font-weight: 600;">REFERENCE</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -56,14 +54,8 @@
                                 $referenceInfo = $this->getReferenceInfo($stock);
                                 
                                 // Calculate change amount (difference from previous stock)
+                                // Find previous stock entry for the same product (global timeline, any site)
                                 $previousStock = \App\Models\Stock::where('product_id', $stock->product_id)
-                                    ->where(function($q) use ($stock) {
-                                        if ($stock->site_id) {
-                                            $q->where('site_id', $stock->site_id);
-                                        } else {
-                                            $q->whereNull('site_id');
-                                        }
-                                    })
                                     ->where('status', true)
                                     ->where(function($q) use ($stock) {
                                         $q->where('created_at', '<', $stock->created_at)
@@ -88,67 +80,76 @@
                                     $changeAmount = $stock->quantity - $previousQty; // Can be positive or negative
                                 }
                             @endphp
-                            <tr class="border-bottom">
-                                <td class="text-start" style="padding: 0.75rem;">
+                            <tr class="border-bottom stock-entry-row" style="transition: background-color 0.2s ease;">
+                                <td class="text-start" style="padding: 1rem 0.75rem;">
                                     <div class="d-flex flex-column">
-                                        <span class="text-gray-800 fw-semibold">
+                                        <span class="text-gray-800 fw-semibold" style="font-size: 0.9375rem;">
                                             {{ $stock->created_at ? $stock->created_at->format('d/m/Y') : 'N/A' }}
                                         </span>
-                                        <span class="text-gray-500" style="font-size: 0.8125rem;">
+                                        <span class="text-gray-500" style="font-size: 0.8125rem; margin-top: 2px;">
                                             {{ $stock->created_at ? $stock->created_at->format('H:i:s') : '' }}
                                         </span>
                                     </div>
                                 </td>
                                 @if(!$product)
-                                    <td class="text-start" style="padding: 0.75rem;">
-                                        <span class="text-gray-800 fw-semibold">{{ $stock->product->product_name ?? 'N/A' }}</span>
+                                    <td class="text-start" style="padding: 1rem 0.75rem;">
+                                        <span class="text-gray-800 fw-semibold" style="font-size: 0.9375rem;">{{ $stock->product->product_name ?? 'N/A' }}</span>
                                     </td>
                                 @endif
-                                <td class="text-center" style="padding: 0.75rem;">
-                                    <span class="badge {{ $adjustmentBadge }} d-inline-flex align-items-center gap-1" style="font-size: 0.875rem; padding: 0.375rem 0.75rem;">
+                                <td class="text-center" style="padding: 1rem 0.75rem;">
+                                    @php
+                                        $typeLabel = strtoupper($stock->adjustment_type);
+                                        $changeDisplay = '';
+                                        if ($changeAmount != 0) {
+                                            if ($stock->adjustment_type === 'in') {
+                                                $changeDisplay = '+' . number_format(abs($changeAmount));
+                                            } elseif ($stock->adjustment_type === 'out') {
+                                                $changeDisplay = '  ' . number_format(abs($changeAmount));
+                                            } else {
+                                                $changeDisplay = number_format($changeAmount);
+                                            }
+                                        }
+                                    @endphp
+                                    <span class="badge {{ $adjustmentBadge }} d-inline-flex align-items-center gap-2" style="font-size: 0.875rem; padding: 0.5rem 0.875rem;">
                                         <i class="fa-solid {{ $adjustmentIcon }}" style="font-size: 0.875rem;"></i>
-                                        <span class="fw-bold">{{ strtoupper($stock->adjustment_type) }}</span>
-                                        @if($changeAmount != 0)
-                                            <span class="fw-bold ms-1">
-                                                @if($stock->adjustment_type === 'in')
-                                                    +{{ formatQty(abs($changeAmount)) }}
-                                                @elseif($stock->adjustment_type === 'out')
-                                                    -{{ formatQty(abs($changeAmount)) }}
-                                                @else
-                                                    {{ formatQty($changeAmount) }}
-                                                @endif
-                                            </span>
+                                        <span class="fw-bold">{{ $typeLabel }}</span>
+                                        @if($changeDisplay)
+                                            <span class="fw-bold">{{ $changeDisplay }}</span>
                                         @endif
                                     </span>
                                 </td>
-                                <td class="text-center" style="padding: 0.75rem;">
-                                    <span class="text-gray-800 fw-semibold" style="font-size: 1rem;">
+                                <td class="text-center" style="padding: 1rem 0.75rem;">
+                                    <span class="text-gray-800 fw-bold" style="font-size: 1rem;">
                                         {{ formatQty($stock->quantity) }}
                                     </span>
                                 </td>
-                                <td class="text-start" style="padding: 0.75rem;">
-                                    <span class="text-gray-700" style="font-size: 0.875rem;">
+                                <td class="text-start" style="padding: 1rem 0.75rem;">
+                                    <span class="text-gray-700" style="font-size: 0.875rem; line-height: 1.5;">
                                         {{ $stock->notes ?? ($stock->name ?? 'N/A') }}
                                     </span>
                                 </td>
-                                <td class="text-start" style="padding: 0.75rem;">
+                                <td class="text-start" style="padding: 1rem 0.75rem;">
+                                    @php
+                                        $referenceUrl = $this->getReferenceUrl($stock);
+                                    @endphp
                                     @if($referenceInfo)
-                                        <span class="badge badge-light-info">{{ $referenceInfo }}</span>
+                                        @if($referenceUrl)
+                                            <a href="{{ $referenceUrl }}" 
+                                               class="badge badge-light-info text-decoration-none stock-reference-link" 
+                                               style="cursor: pointer; transition: all 0.2s ease;">
+                                                {{ $referenceInfo }}
+                                            </a>
+                                        @else
+                                            <span class="badge badge-light-info">{{ $referenceInfo }}</span>
+                                        @endif
                                     @else
                                         <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="text-start" style="padding: 0.75rem;">
-                                    @if($stock->site)
-                                        <span class="text-gray-700">{{ $stock->site->name ?? 'N/A' }}</span>
-                                    @else
-                                        <span class="badge badge-light-secondary">General</span>
                                     @endif
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="{{ $product ? '7' : '8' }}" class="text-center py-10">
+                                <td colspan="{{ $product ? '6' : '7' }}" class="text-center py-10">
                                     <div class="d-flex flex-column align-items-center">
                                         <div class="symbol symbol-circle symbol-80px mb-4">
                                             <div class="symbol-label bg-light">
@@ -180,4 +181,25 @@
     </div>
 
     <x-datatable-styles />
+    
+    <style>
+        .stock-entry-row:hover {
+            background-color: #f9fafb !important;
+        }
+        
+        .stock-reference-link:hover {
+            background-color: #0dcaf0 !important;
+            color: white !important;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table tbody tr {
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        .table tbody tr:last-child {
+            border-bottom: none;
+        }
+    </style>
 </div>

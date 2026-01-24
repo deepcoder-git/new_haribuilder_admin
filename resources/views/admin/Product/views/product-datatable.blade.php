@@ -286,34 +286,10 @@
         }
 
         document.addEventListener('livewire:initialized', () => {
-            let lastToggledCheckbox = null;
-            let originalStatusBeforeToggle = null;
-            
             // Initialize tooltips on page load
             if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
                 initProductTooltips();
             }
-            
-            // Store original checkbox state BEFORE it toggles
-            document.querySelectorAll('.product-status-toggle').forEach(checkbox => {
-                checkbox.addEventListener('mousedown', function(e) {
-                    // Store state before the click toggles it
-                    lastToggledCheckbox = this;
-                    originalStatusBeforeToggle = this.checked;
-                });
-            });
-
-            // Listen for error toasts and revert the last toggled checkbox
-            Livewire.on('show-toast', (data) => {
-                if (data.type === 'error' && data.message && data.message.includes('Cannot inactive product')) {
-                    if (lastToggledCheckbox && originalStatusBeforeToggle !== null) {
-                        // Revert to original state
-                        lastToggledCheckbox.checked = originalStatusBeforeToggle;
-                        lastToggledCheckbox = null;
-                        originalStatusBeforeToggle = null;
-                    }
-                }
-            });
         });
 
         // Initialize image zoom functionality using event delegation (only once)
@@ -363,10 +339,7 @@
             initImageZoom();
         }
         
-        // Also initialize after Livewire is ready
-        document.addEventListener('livewire:initialized', () => {
-            initImageZoom();
-        });
+        // (No extra init needed; event delegation is registered once)
     </script>
 </div>
 

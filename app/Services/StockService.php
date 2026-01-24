@@ -25,7 +25,6 @@ class StockService extends BaseCrudService
             'quantity' => 'required|integer|min:0',
             'adjustment_type' => 'required|in:in,out,adjustment',
             'notes' => 'nullable|string',
-            'metadata' => 'nullable|array',
             'status' => 'boolean',
         ];
     }
@@ -52,13 +51,12 @@ class StockService extends BaseCrudService
      * @param string|null $notes Notes for the adjustment
      * @param mixed|null $reference Reference model (Order, etc.)
      * @param string|null $name Name for the stock entry
-     * @param array|null $metadata Additional metadata
      * @param bool|null $isProduct Force check is_product flag (null = auto-detect)
      * @return Stock
      */
-    public function adjustStock(int $productId, int $quantity, string $adjustmentType, ?int $siteId = null, ?string $notes = null, $reference = null, ?string $name = null, ?array $metadata = null, ?bool $isProduct = null): Stock
+    public function adjustStock(int $productId, int $quantity, string $adjustmentType, ?int $siteId = null, ?string $notes = null, $reference = null, ?string $name = null, ?bool $isProduct = null): Stock
     {
-        return DB::transaction(function () use ($productId, $quantity, $adjustmentType, $siteId, $notes, $reference, $name, $metadata, $isProduct) {
+        return DB::transaction(function () use ($productId, $quantity, $adjustmentType, $siteId, $notes, $reference, $name, $isProduct) {
             if ($quantity <= 0) {
                 throw new \InvalidArgumentException('Quantity must be greater than 0');
             }
@@ -125,7 +123,6 @@ class StockService extends BaseCrudService
                 'quantity' => $newQuantity,
                 'adjustment_type' => $adjustmentType,
                 'notes' => $notes,
-                'metadata' => $metadata,
                 'status' => true,
                 'reference_id' => null,
                 'reference_type' => null,
@@ -150,17 +147,17 @@ class StockService extends BaseCrudService
     /**
      * Adjust stock specifically for products (is_product IN (1, 2))
      */
-    public function adjustProductStock(int $productId, int $quantity, string $adjustmentType, ?int $siteId = null, ?string $notes = null, $reference = null, ?string $name = null, ?array $metadata = null): Stock
+    public function adjustProductStock(int $productId, int $quantity, string $adjustmentType, ?int $siteId = null, ?string $notes = null, $reference = null, ?string $name = null): Stock
     {
-        return $this->adjustStock($productId, $quantity, $adjustmentType, $siteId, $notes, $reference, $name, $metadata, true);
+        return $this->adjustStock($productId, $quantity, $adjustmentType, $siteId, $notes, $reference, $name, true);
     }
 
     /**
      * Adjust stock specifically for materials (is_product = 0)
      */
-    public function adjustMaterialStock(int $productId, int $quantity, string $adjustmentType, ?int $siteId = null, ?string $notes = null, $reference = null, ?string $name = null, ?array $metadata = null): Stock
+    public function adjustMaterialStock(int $productId, int $quantity, string $adjustmentType, ?int $siteId = null, ?string $notes = null, $reference = null, ?string $name = null): Stock
     {
-        return $this->adjustStock($productId, $quantity, $adjustmentType, $siteId, $notes, $reference, $name, $metadata, false);
+        return $this->adjustStock($productId, $quantity, $adjustmentType, $siteId, $notes, $reference, $name, false);
     }
 
     /**

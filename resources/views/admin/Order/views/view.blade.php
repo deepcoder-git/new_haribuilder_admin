@@ -157,12 +157,13 @@
                         <span class="text-gray-600" style="margin: 0 8px;">:</span>
                         <span class="ms-2">
                             @php
-                                $deliveryStatus = $order->delivery_status ?? 'pending';
+                                // orders.delivery_status column was removed; use main status enum/value instead
+                                $deliveryStatus = $order->status?->value ?? ($order->status ?? 'pending');
                                 $badgeClass = match($deliveryStatus) {
                                     'pending' => 'badge-light-warning',
                                     'approved' => 'badge-light-success',
                                     'in_transit' => 'badge-light-primary',
-                                    'delivered' => 'badge-light-info',
+                                    'delivery' => 'badge-light-info',
                                     'rejected' => 'badge-light-danger',
                                     'outfordelivery' => 'badge-light-primary',
                                     default => 'badge-light-secondary',
@@ -170,6 +171,7 @@
                                 $statusLabel = match($deliveryStatus) {
                                     'in_transit' => 'In Transit',
                                     'approved' => 'Approved',
+                                    'delivery' => 'Delivery',
                                     'outfordelivery' => 'Out of Delivery',
                                     default => ucfirst($deliveryStatus),
                                 };
@@ -192,96 +194,13 @@
                         <span class="text-gray-800 fw-bold fs-6" style="white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; flex: 1; min-width: 0;">{{ $order->note }}</span>
                     </div>
                     @endif
-                    @if($order->approvedBy)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Approved By</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">{{ $order->approvedBy->name ?? 'N/A' }}</span>
-                    </div>
-                    @endif
-                    @if($order->approved_at)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Approved At</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">{{ $order->approved_at->format('d-m-Y H:i') }}</span>
-                    </div>
-                    @endif
-                    @if($order->document_details)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Document</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">
-                            <a href="{{ Storage::url($order->document_details) }}" target="_blank" class="btn btn-sm btn-primary">
-                                <i class="fa-solid fa-file me-1"></i>View Document
-                            </a>
-                        </span>
-                    </div>
-                    @endif
-                    @php
-                        $deliveries = $order->deliveries ?? collect();
-                        $latestDelivery = $deliveries->sortByDesc('created_at')->first();
-                    @endphp
-                    @if($deliveries->count() > 0 && $latestDelivery)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Delivery ID</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">
-                            <a href="{{ route('admin.deliveries.view', $latestDelivery->id) }}" class="badge badge-light-primary me-1" style="text-decoration: none;">
-                                #{{ $latestDelivery->id }}
-                            </a>
-                            @if($deliveries->count() > 1)
-                                <span class="text-gray-500 fs-7">(+{{ $deliveries->count() - 1 }} more)</span>
-                            @endif
-                        </span>
-                    </div>
-                    @if($latestDelivery->delivery_date)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Delivery Date</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">{{ $latestDelivery->delivery_date->format('d-m-Y') }}</span>
-                    </div>
-                    @endif
-                    @if($latestDelivery->transportManager)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Delivery Manager</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">{{ $latestDelivery->transportManager->name ?? 'N/A' }}</span>
-                    </div>
-                    @endif
-                    @if($latestDelivery->status)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Delivery Record Status</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="ms-2">
-                            @php
-                                $deliveryStatus = $latestDelivery->status ?? 'pending';
-                                $badgeClass = match($deliveryStatus) {
-                                    'pending' => 'badge-light-warning',
-                                    'assigned' => 'badge-light-primary',
-                                    'in_transit' => 'badge-light-info',
-                                    'delivered' => 'badge-light-success',
-                                    'cancelled' => 'badge-light-danger',
-                                    default => 'badge-light-secondary',
-                                };
-                                $statusLabel = match($deliveryStatus) {
-                                    'pending' => 'Pending',
-                                    'assigned' => 'Assigned',
-                                    'in_transit' => 'In Transit',
-                                    'delivered' => 'Delivered',
-                                    'cancelled' => 'Cancelled',
-                                    default => ucfirst($deliveryStatus),
-                                };
-                            @endphp
-                            <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
-                        </span>
-                    </div>
-                    @endif
-                    @endif
+                    {{-- approved_by / approved_at / document_details columns were removed from orders --}}
+                    {{-- deliveries table removed --}}
                 </div>
                 <div class="col-md-7">
                     @php
                         $hardwareProducts = $order->products ? $order->products->filter(fn($p) => $p->store?->value === 'hardware_store') : collect();
-                        $warehouseProducts = $order->products ? $order->products->filter(fn($p) => $p->store?->value === 'warehouse_store') : collect();
+                        $warehouseProducts = $order->products ? $order->products->filter(fn($p) => $p->store?->value === 'workshop_store') : collect();
                         $lpoProducts = $order->products ? $order->products->filter(fn($p) => $p->store?->value === 'lpo') : collect();
                         $customProducts = $order->customProducts ?? collect();
                         

@@ -304,13 +304,9 @@ class MaterialImport implements ToCollection, WithHeadingRow, WithCustomCsvSetti
                 'available_qty_after_update' => $material->available_qty,
             ]);
         } else {
-            // Generate unique slug
-            $slug = $this->generateUniqueSlug($materialName);
-            
             // Create new material
             $material = Product::create(array_merge([
                 'product_name' => $materialName,
-                'slug' => $slug,
                 'type' => ProductTypeEnum::Material->value,
             ], $materialData));
             
@@ -455,28 +451,6 @@ class MaterialImport implements ToCollection, WithHeadingRow, WithCustomCsvSetti
             Log::warning("Material Import - Unknown store name: {$storeName}, normalized: {$normalized}");
             return null;
         }
-    }
-
-    protected function generateUniqueSlug(string $materialName): string
-    {
-        $slug = Str::slug($materialName);
-        $originalSlug = $slug;
-        $counter = 1;
-
-        // Check if slug already exists, if so append counter
-        while (Product::where('slug', $slug)->exists()) {
-            $slug = $originalSlug . '-' . $counter;
-            $counter++;
-            
-            // Prevent infinite loop (max 10000 attempts)
-            if ($counter > 10000) {
-                // Use timestamp as fallback
-                $slug = $originalSlug . '-' . time();
-                break;
-            }
-        }
-
-        return $slug;
     }
 
     /**

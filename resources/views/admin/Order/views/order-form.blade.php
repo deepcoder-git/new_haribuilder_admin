@@ -520,16 +520,32 @@
                                             <label style="margin: 0; font-size: 0.8125rem; font-weight: 600; color: #374151; white-space: nowrap;">
                                                 Order Status:
                                             </label>
-                                            @if(session()->has('product_status_updated') && str_contains(session('product_status_updated'), $groupType))
-                                                <div class="alert alert-success mb-0" style="font-size: 0.75rem; padding: 0.375rem 0.75rem; border-radius: 0.375rem; margin: 0;">
-                                                    <i class="fa-solid fa-check-circle me-1"></i>
-                                                    {{ session('product_status_updated') }}
+                                            @if(!empty($productStatusSuccess[$groupType] ?? null))
+                                                <div class="alert alert-success mb-0 d-flex align-items-center justify-content-between gap-2" style="font-size: 0.75rem; padding: 0.375rem 0.75rem; border-radius: 0.375rem; margin: 0;">
+                                                    <span>
+                                                        <i class="fa-solid fa-check-circle me-1"></i>
+                                                        {{ $productStatusSuccess[$groupType] }}
+                                                    </span>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-link p-0"
+                                                            wire:click="clearProductStatusMessage('{{ $groupType }}')"
+                                                            style="line-height: 1; text-decoration: none;">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
                                                 </div>
                                             @endif
-                                            @if(session()->has('product_status_error'))
-                                                <div class="alert alert-danger mb-0" style="font-size: 0.75rem; padding: 0.375rem 0.75rem; border-radius: 0.375rem; margin: 0;">
-                                                    <i class="fa-solid fa-exclamation-circle me-1"></i>
-                                                    {{ session('product_status_error') }}
+                                            @if(!empty($productStatusErrors[$groupType] ?? null))
+                                                <div class="alert alert-danger mb-0 d-flex align-items-center justify-content-between gap-2" style="font-size: 0.75rem; padding: 0.375rem 0.75rem; border-radius: 0.375rem; margin: 0;">
+                                                    <span>
+                                                        <i class="fa-solid fa-exclamation-circle me-1"></i>
+                                                        {{ $productStatusErrors[$groupType] }}
+                                                    </span>
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-link p-0"
+                                                            wire:click="clearProductStatusMessage('{{ $groupType }}')"
+                                                            style="line-height: 1; text-decoration: none; color: inherit;">
+                                                        <i class="fa-solid fa-xmark"></i>
+                                                    </button>
                                                 </div>
                                             @endif
                                             <div class="position-relative" style="display: inline-block;">
@@ -723,7 +739,7 @@
                                                                                 <div style="margin-bottom: 0.5rem; padding: 0.35rem 0.75rem; border-radius: 0.5rem; background-color: #dbeafe; border: 1px solid #bfdbfe; display: inline-flex; align-items: center; gap: 0.5rem;">
                                                                                     <i class="fa-solid fa-warehouse" style="color: #1d4ed8; font-size: 0.8rem;"></i>
                                                                                     <span style="font-size: 0.8125rem; font-weight: 700; color: #111827;">
-                                                                                        Warehouse Products Connected to This Custom Product
+                                                                                    Workshop Store Products Connected to This Custom Product
                                                                                     </span>
                                                                                 </div>
                                                                                 <div class="table-responsive" style="border-radius: 0.375rem; overflow: hidden;">
@@ -1755,7 +1771,7 @@
                                                     <span wire:loading wire:target="addProductRow" class="spinner-border spinner-border-sm" style="width: 0.875rem; height: 0.875rem;"></span>
                                                 </button>
                                             @endif
-                                            @if(!$isEditMode || $delivery_status === 'pending')
+                                            @if(!$isEditMode || ($status ?? 'pending') === 'pending')
                                                 <button type="button" 
                                                         wire:click="removeProductRow({{ $index }})"
                                                         class="btn btn-sm btn-icon btn-light-danger"
@@ -2908,74 +2924,67 @@ document.addEventListener('livewire:init', () => {
         });
     }, 200);
     
-    // Listen for revert product status select event
-    document.addEventListener('livewire:init', () => {
-        Livewire.on('revert-product-status-select', (data) => {
-            const { type, status } = data;
-            const select = document.getElementById('product-status-' + type);
-            if (select) {
-                // Force update the select value
-                select.value = status;
-                
-                // Update the selected attribute on the option
-                Array.from(select.options).forEach(option => {
-                    option.selected = (option.value === status);
-                });
-                
-                // Update visual appearance
-                updateStatusColor(select, type);
-                
-                // Update data attribute and clear pending status
-                select.setAttribute('data-current-status', status);
-                select.removeAttribute('data-pending-status');
-                
-                // Trigger change event to ensure all handlers are notified
-                select.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-        });
-        
-        // Listen for update product status select event (after successful save)
-        Livewire.on('update-product-status-select', (data) => {
-            const { type, status } = data;
-            const select = document.getElementById('product-status-' + type);
-            if (select) {
-                select.value = status;
-                updateStatusColor(select, type);
-                // Update data attribute and clear pending status
-                select.setAttribute('data-current-status', status);
-                select.removeAttribute('data-pending-status');
-            }
-        });
-        
-        // Sync select values after Livewire updates based on productStatuses
-        Livewire.hook('morph.updated', ({ el, component }) => {
-            setTimeout(() => {
-                if (window.Livewire && window.Livewire.find) {
-                    try {
-                        const livewireComponent = window.Livewire.find(component.id);
-                        if (livewireComponent && livewireComponent.get) {
-                            const productStatuses = livewireComponent.get('productStatuses');
-                            if (productStatuses) {
-                                Object.keys(productStatuses).forEach(type => {
-                                    const select = document.getElementById('product-status-' + type);
-                                    if (select) {
-                                        const currentValue = select.value;
-                                        const expectedValue = productStatuses[type];
-                                        if (currentValue !== expectedValue) {
-                                            select.value = expectedValue;
-                                            updateStatusColor(select, type);
-                                            select.setAttribute('data-current-status', expectedValue);
-                                        }
+    // Livewire v3: register event listeners directly inside this init callback
+    Livewire.on('revert-product-status-select', (...args) => {
+        const payload = args[0] ?? {};
+        const type = (payload && typeof payload === 'object' && 'type' in payload) ? payload.type : args[0];
+        const status = (payload && typeof payload === 'object' && 'status' in payload) ? payload.status : args[1];
+        if (!type || !status) return;
+        const select = document.getElementById('product-status-' + type);
+        if (select) {
+            select.value = status;
+            Array.from(select.options).forEach(option => {
+                option.selected = (option.value === status);
+            });
+            updateStatusColor(select, type);
+            select.setAttribute('data-current-status', status);
+            select.removeAttribute('data-pending-status');
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    });
+    
+    Livewire.on('update-product-status-select', (...args) => {
+        const payload = args[0] ?? {};
+        const type = (payload && typeof payload === 'object' && 'type' in payload) ? payload.type : args[0];
+        const status = (payload && typeof payload === 'object' && 'status' in payload) ? payload.status : args[1];
+        if (!type || !status) return;
+        const select = document.getElementById('product-status-' + type);
+        if (select) {
+            select.value = status;
+            updateStatusColor(select, type);
+            select.setAttribute('data-current-status', status);
+            select.removeAttribute('data-pending-status');
+        }
+    });
+    
+    // Sync select values after Livewire updates based on productStatuses
+    Livewire.hook('morph.updated', ({ el, component }) => {
+        setTimeout(() => {
+            if (window.Livewire && window.Livewire.find) {
+                try {
+                    const livewireComponent = window.Livewire.find(component.id);
+                    if (livewireComponent && livewireComponent.get) {
+                        const productStatuses = livewireComponent.get('productStatuses');
+                        if (productStatuses) {
+                            Object.keys(productStatuses).forEach(type => {
+                                const select = document.getElementById('product-status-' + type);
+                                if (select) {
+                                    const expectedValue = productStatuses[type];
+                                    if (typeof expectedValue !== 'string') return;
+                                    if (select.value !== expectedValue) {
+                                        select.value = expectedValue;
+                                        updateStatusColor(select, type);
+                                        select.setAttribute('data-current-status', expectedValue);
                                     }
-                                });
-                            }
+                                }
+                            });
                         }
-                    } catch (e) {
-                        // Ignore errors
                     }
+                } catch (e) {
+                    // Ignore errors
                 }
-            }, 150);
-        });
+            }
+        }, 150);
     });
 });
 </script>

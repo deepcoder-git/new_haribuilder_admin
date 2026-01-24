@@ -101,9 +101,9 @@
                 <div class="card-body py-4">
                     @forelse($recentOrders as $order)
                         @php
-                            $status = $order->delivery_status ?? $order->status;
+                            $status = $order->status?->value ?? ($order->status ?? 'pending');
                             $badgeClass = match ($status) {
-                                'delivered', 'completed' => 'badge-light-success',
+                                'delivery' => 'badge-light-success',
                                 'pending' => 'badge-light-warning',
                                 'rejected', 'cancelled' => 'badge-light-danger',
                                 default => 'badge-light-secondary',

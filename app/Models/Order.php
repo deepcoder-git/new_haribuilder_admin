@@ -18,28 +18,17 @@ class Order extends Model
 
     protected $fillable = [
         'site_manager_id',
-        'store_manager_role',
         'store',
         'transport_manager_id',
         'site_id',
         'sale_date',
         'expected_delivery_date',
-        'product_id',
-        'quantity',
-        'amount',
         'status',
-        'approved_by',
-        'approved_at',
         'priority',
         'note',
         'rejected_note',
         'product_rejection_notes',
-        'customer_image',
         'drop_location',
-        'document_details',
-        'is_completed',
-        'completed_at',
-        'completed_by',
         'is_lpo',
         'is_custom_product',
         'supplier_id',
@@ -51,11 +40,6 @@ class Order extends Model
         'status' => OrderStatusEnum::class,
         'sale_date' => 'date',
         'expected_delivery_date' => 'date',
-        'quantity' => 'integer',
-        'amount' => 'integer',
-        'is_completed' => 'boolean',
-        'completed_at' => 'datetime',
-        'approved_at' => 'datetime',
         'is_lpo' => 'boolean',
         'is_custom_product' => 'boolean',
         'product_status' => 'array',
@@ -79,11 +63,6 @@ class Order extends Model
         return $this->belongsTo(Site::class);
     }
 
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
-
     public function products()
     {
         return $this->belongsToMany(Product::class, 'order_products')
@@ -97,20 +76,7 @@ class Order extends Model
         return $this->hasMany(OrderCustomProduct::class);
     }
 
-    public function deliveries()
-    {
-        return $this->hasMany(Delivery::class);
-    }
-
-    public function completedBy()
-    {
-        return $this->belongsTo(Moderator::class, 'completed_by');
-    }
-
-    public function approvedBy()
-    {
-        return $this->belongsTo(Moderator::class, 'approved_by');
-    }
+ 
 
     /**
      * Get the parent order (if this is a child order)
@@ -178,36 +144,6 @@ class Order extends Model
         return Supplier::whereIn('id', $supplierIds)->get();
     }
 
-    public static function syncMixedOrderCompletion(Order $order): void
-    {
-        $order->loadMissing(['deliveries']);
-
-        $delivery = $order->deliveries()->first();
-        $deliveryStatus = $delivery?->status ?? null;
-        $orderStatusValue = $order->status?->value ?? 'pending';
-
-        if ($deliveryStatus !== 'delivered' && $orderStatusValue !== 'delivered' && $orderStatusValue !== 'completed') {
-            return;
-        }
-
-        if ($order->is_completed && ($orderStatusValue === 'delivered' || $orderStatusValue === 'completed')) {
-            return;
-        }
-
-        $now = now();
-        $completedBy = Auth::guard('moderator')->id() ?? Auth::id();
-
-        // All delivered orders now use unified 'delivery' status (no separate 'completed' status)
-        $orderStatus = OrderStatusEnum::Delivery->value;
-
-        $order->update([
-            'status' => $orderStatus,
-            'is_completed' => true,
-            'completed_at' => $order->completed_at ?? $now,
-            'completed_by' => $order->completed_by ?? $completedBy,
-        ]);
-    }
-
     /**
      * Sync parent/child order statuses
      * Note: parent_order_id has been removed - this method now does nothing
@@ -223,64 +159,6 @@ class Order extends Model
         // LPO orders are identified by is_lpo flag, not parent_order_id
         $order->syncOrderStatusFromProductStatuses();
         return;
-    }
-
-    public static function countPendingOrdersForSiteManager($siteManagerId, $siteId = null)
-    {
-        $query = self::where('site_manager_id', $siteManagerId)->where('delivery_status', 'pending');
-
-        if ($siteId !== null) {
-            $query = $query->where('site_id', $siteId);
-        }
-
-        return $query->count();
-    }
-
-    public static function countApprovedOrdersForSiteManager($siteManagerId, $siteId = null)
-    {
-        $query = self::where('site_manager_id', $siteManagerId)->where('delivery_status', 'approved');
-
-        if ($siteId !== null) {
-            $query = $query->where('site_id', $siteId);
-        }
-        
-        return $query->count();
-    }
-
-    public static function countDeliveredOrdersForSiteManager($siteManagerId, $siteId = null)
-    {
-        $query = self::where('site_manager_id', $siteManagerId)->where('delivery_status', 'delivered');
-
-        if ($siteId !== null) {
-            $query = $query->where('site_id', $siteId);
-        }
-
-        return $query->count();
-    }
-
-    public static function countRejectedOrdersForSiteManager($siteManagerId, $siteId = null)
-    {
-        $query = self::where('site_manager_id', $siteManagerId)->where('delivery_status', 'rejected');
-
-        if ($siteId !== null) {
-            $query = $query->where('site_id', $siteId);
-        }
-
-        return $query->count();
-    }
-
-    public static function countDelayedOrdersForSiteManager($siteManagerId, $siteId = null)
-    {
-        $query = self::where('site_manager_id', $siteManagerId)
-                    ->where('sale_date', '<', Carbon::now())
-                    ->whereNotNull('transport_manager_id')
-                    ->whereIn('delivery_status', ['approved', 'in_transit']);
-
-        if ($siteId !== null) {
-            $query = $query->where('site_id', $siteId);
-        }
-
-        return $query->count();
     }
 
     /**
@@ -301,7 +179,7 @@ class Order extends Model
 
     public function scopePendingOrders($query)
     {
-        return $query->where('delivery_status', 'pending');
+        return $query->where('status', OrderStatusEnum::Pending->value);
     }
 
     /**
@@ -721,12 +599,6 @@ class Order extends Model
         $updateData = [
             'status' => $calculatedStatus,
         ];
-        
-        // Also update delivery_status to match if it's pending, approved, or rejected
-        if (in_array($calculatedStatus, ['pending', 'approved', 'rejected'], true)) {
-            $updateData['delivery_status'] = $calculatedStatus;
-        }
-        
         return $this->update($updateData);
     }
 

@@ -91,7 +91,8 @@ class Module extends Model
             $modulePermissionMap = self::getModulePermissionMap();
 
             if ($userRole && $userRole === \App\Utility\Enums\RoleEnum::TransportManager) {
-                return $query->whereIn('unique_name', ['admin.deliveries'])->get();
+                // deliveries module removed
+                return $query->whereIn('unique_name', ['admin.orders'])->get();
             }
 
             $allowedUniqueNames = [];
@@ -155,7 +156,6 @@ class Module extends Model
             'admin.stocks' => ['inventory'],
             'admin.stock-transfers' => ['inventory'],
             'admin.orders' => ['orders'],
-            'admin.deliveries' => ['orders'],
         ];
     }
 }
