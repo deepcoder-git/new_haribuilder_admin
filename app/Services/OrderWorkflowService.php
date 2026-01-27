@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\Stock;
 use App\Utility\Enums\StoreEnum;
 use Illuminate\Support\Facades\Log;
 
@@ -91,6 +92,21 @@ class OrderWorkflowService
                 continue;
             }
 
+            // Make hardware stock deduction idempotent per order/product/site:
+            // if we've already created an 'out' stock entry for this order+product, skip.
+            $alreadyDeducted = Stock::where('product_id', (int) $product->id)
+                ->where('status', true)
+                ->where('adjustment_type', 'out')
+                ->where('reference_id', $order->id)
+                ->where('reference_type', Order::class)
+                ->when($siteId !== null, fn ($q) => $q->where('site_id', $siteId), fn ($q) => $q->whereNull('site_id'))
+                ->exists();
+
+            if ($alreadyDeducted) {
+                Log::info("OrderWorkflowService::deductHardwareStockOnApproval: Stock already deducted for product {$product->id} in order {$order->id}, skipping duplicate deduction.");
+                continue;
+            }
+
             try {
                 $this->stockService->adjustStock(
                     (int) $product->id,
@@ -133,6 +149,21 @@ class OrderWorkflowService
 
             $quantity = (int) ($product->pivot->quantity ?? 0);
             if ($quantity <= 0) {
+                continue;
+            }
+
+            // Make warehouse stock deduction idempotent per order/product/site:
+            // if we've already created an 'out' stock entry for this order+product, skip.
+            $alreadyDeducted = Stock::where('product_id', (int) $product->id)
+                ->where('status', true)
+                ->where('adjustment_type', 'out')
+                ->where('reference_id', $order->id)
+                ->where('reference_type', Order::class)
+                ->when($siteId !== null, fn ($q) => $q->where('site_id', $siteId), fn ($q) => $q->whereNull('site_id'))
+                ->exists();
+
+            if ($alreadyDeducted) {
+                Log::info("OrderWorkflowService::deductWarehouseStockOnOutForDelivery: Stock already deducted for product {$product->id} in order {$order->id}, skipping duplicate deduction.");
                 continue;
             }
 

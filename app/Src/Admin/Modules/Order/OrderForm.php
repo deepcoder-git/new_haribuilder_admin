@@ -3829,13 +3829,13 @@ class OrderForm extends Component
                 ? $this->stockService->getCurrentProductStock((int) $productId, null)
                 : $this->stockService->getCurrentMaterialStock((int) $productId, null);
 
-            if ($available < $qty) {
-                $productName = $product->product_name ?? "Product ID {$productId}";
-                return [
-                    'ok' => false,
-                    'message' => "{$type}: Failed to deduct stock for {$productName}. Insufficient stock. Available: {$available}, Requested: {$qty}",
-                ];
-            }
+            // if ($available < $qty) {
+            //     $productName = $product->product_name ?? "Product ID {$productId}";
+            //     return [
+            //         'ok' => false,
+            //         'message' => "{$type}: Failed to deduct stock for {$productName}. Insufficient stock. Available: {$available}, Requested: {$qty}",
+            //     ];
+            // }
 
             foreach ($product->materials as $material) {
                 $perUnit = (float) ($material->pivot->quantity ?? 0);
@@ -3860,14 +3860,14 @@ class OrderForm extends Component
             $siteStock = $siteId ? $this->stockService->getCurrentMaterialStock((int) $materialId, $siteId) : 0;
             $available = $generalStock + $siteStock;
 
-            if ($available < $requiredQtyInt) {
-                $materialModel = Product::find((int) $materialId);
-                $materialName = $materialModel?->product_name ?? $materialModel?->material_name ?? "Material ID {$materialId}";
-                return [
-                    'ok' => false,
-                    'message' => "{$type}: Failed to deduct stock for {$materialName}. Insufficient material stock. Available: {$available}, Requested: {$requiredQtyInt}",
-                ];
-            }
+            // if ($available < $requiredQtyInt) {
+            //     $materialModel = Product::find((int) $materialId);
+            //     $materialName = $materialModel?->product_name ?? $materialModel?->material_name ?? "Material ID {$materialId}";
+            //     return [
+            //         'ok' => false,
+            //         'message' => "{$type}: Failed to deduct stock for {$materialName}. Insufficient material stock. Available: {$available}, Requested: {$requiredQtyInt}",
+            //     ];
+            // }
         }
 
         return ['ok' => true, 'message' => null];
