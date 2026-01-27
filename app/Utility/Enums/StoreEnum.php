@@ -13,16 +13,20 @@ enum StoreEnum: string
 
     case HardwareStore = 'hardware_store';
 
-    case WarehouseStore = 'warehouse_store';
+    case WarehouseStore  = 'workshop_store';
+
+    case WorkshopStore = 'workshop_store';
 
     case LPO = 'lpo';
+    
 
     public function getName(): string
     {
         return match($this) {
             self::HardwareStore => 'Hardware Store',
-            self::WarehouseStore => 'Workshop store',
+            self::WarehouseStore => 'Workshop Store',
             self::LPO => 'LPO(Local Purchase Order)',
+            self::WorkshopStore => 'Workshop Store',
         };
     }
 }
