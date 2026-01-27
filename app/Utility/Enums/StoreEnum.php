@@ -18,6 +18,7 @@ enum StoreEnum: string
     case WorkshopStore = 'workshop_store';
 
     case LPO = 'lpo';
+    
 
     public function getName(): string
     {
