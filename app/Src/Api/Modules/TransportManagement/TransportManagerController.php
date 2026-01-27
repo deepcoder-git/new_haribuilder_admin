@@ -241,11 +241,16 @@ class TransportManagerController extends Controller
             $request->validate([
                 'per_page' => ['required', 'integer', 'max_digits:3', 'min_digits:1'],
                 'page' => ['required', 'integer'],
-                'delivery_status' => ['nullable', 'string', Rule::in(['approved', 'in_transit', 'delivered', 'outfordelivery', 'all'])],
+                // Filter based on main status column (same pattern as StoreOrderController)
+                'order_status' => ['nullable', 'string', Rule::in(['pending', 'approve', 'approved', 'rejected', 'in_transit', 'delivered', 'outfordelivery', 'all'])],
             ]);
 
             $user = $request->user();
-            $deliveryStatus = $request->delivery_status;
+            if(!isset($request->order_status) && $request->order_status == '') {
+                $request->merge(['order_status' => 'all']);
+            }else{
+                $orderStatus = $request->delivery_status ?? 'all';
+            }
             $role = $user?->getRole();
             $userRole = $role?->value ?? null;
 
@@ -263,7 +268,7 @@ class TransportManagerController extends Controller
                 'user_id' => $user->id,
                 'user_role' => $userRole,
                 'role_enum_value' => RoleEnum::WorkshopStoreManager->value,
-                'delivery_status' => $deliveryStatus,
+                'order_status' => $orderStatus,
             ]);
 
             // Base query: Workshop (warehouse) orders only, exclude LPO
@@ -279,14 +284,29 @@ class TransportManagerController extends Controller
             ]);
 
             $query = Order::with(['site','products.category', 'products.productImages'])
-                ->whereIn('delivery_status',['approved','in_transit','delivered','outfordelivery'])
                 // Workshop (warehouse) orders only, exclude LPO
                 ->where('is_lpo', 0)
                 ->whereHas('products', function (Builder $q) {
                     $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                 })
-                ->when($deliveryStatus && $deliveryStatus !== 'all', function (Builder $query) use ($deliveryStatus) {
-                    $query->where('delivery_status', $deliveryStatus);
+                ->when($orderStatus && $orderStatus !== 'all', function (Builder $query) use ($orderStatus) {
+                    $normalizedStatus = trim(strtolower((string) $orderStatus));
+
+                    if ($normalizedStatus === 'approve' || $normalizedStatus === 'approved') {
+                        $normalizedStatus = OrderStatusEnum::Approved->value;
+                    } elseif ($normalizedStatus === 'pending') {
+                        $normalizedStatus = OrderStatusEnum::Pending->value;
+                    } elseif ($normalizedStatus === 'rejected') {
+                        $normalizedStatus = OrderStatusEnum::Rejected->value;
+                    } elseif ($normalizedStatus === 'in_transit') {
+                        $normalizedStatus = OrderStatusEnum::InTransit->value;
+                    } elseif ($normalizedStatus === 'out_of_delivery' || $normalizedStatus === 'outofdelivery' || $normalizedStatus === 'outfordelivery') {
+                        $normalizedStatus = OrderStatusEnum::OutOfDelivery->value;
+                    } elseif ($normalizedStatus === 'delivery' || $normalizedStatus === 'delivered') {
+                        $normalizedStatus = OrderStatusEnum::Delivery->value;
+                    }
+
+                    $query->where('status', $normalizedStatus);
                 })
                 ->orderByDesc('id');
 
@@ -439,11 +459,11 @@ class TransportManagerController extends Controller
                 //     return new ApiErrorResponse([], 'Order must be approved before it can be set to in transit', 422);
                 // }
                 
-                $updateData['delivery_status'] = 'in_transit';
+                // Main status: in transit
                 $updateData['status'] = OrderStatusEnum::InTransit->value;
             }
             if($deliveryStatus === 'outfordelivery') {
-                $updateData['delivery_status'] = 'outfordelivery';
+                // Main status: out for delivery
                 $updateData['status'] = OrderStatusEnum::OutOfDelivery->value;
             }
             // Handle delivered status
@@ -454,7 +474,6 @@ class TransportManagerController extends Controller
                 //     return new ApiErrorResponse([], 'Order must be in transit before it can be marked as delivered', 422);
                 // }
 
-                $updateData['delivery_status'] = 'delivered';
                 // All delivered orders now use unified 'delivery' status (no separate 'completed' status)
                 $updateData['status'] = OrderStatusEnum::Delivery->value;
                 $updateData['is_completed'] = true;
