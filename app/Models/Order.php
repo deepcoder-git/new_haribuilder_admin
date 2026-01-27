@@ -159,6 +159,19 @@ class Order extends Model
     }
 
     /**
+     * For mixed orders (hardware + workshop + LPO/custom), ensure overall completion
+     * Across product types when transport flow marks delivery complete.
+     * 
+     * Currently, main status is already driven by product_status via
+     * syncOrderStatusFromProductStatuses, so this method just delegates to that.
+     * Kept as a static helper to satisfy callers and keep behavior consistent.
+     */
+    public static function syncMixedOrderCompletion(Order $order): void
+    {
+        $order->syncOrderStatusFromProductStatuses();
+    }
+
+    /**
      * Get store manager based on product types in order
      * Store manager role column removed - determine manager from product types
      */

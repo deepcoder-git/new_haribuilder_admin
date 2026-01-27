@@ -246,11 +246,11 @@ class TransportManagerController extends Controller
             ]);
 
             $user = $request->user();
-            if(!isset($request->order_status) && $request->order_status == '') {
-                $orderStatus =  $request->merge(['order_status' => 'all']);
-            }else{
-                $orderStatus = $request->delivery_status ?? 'all';
+            // Normalize empty order_status to 'all' (same behavior as StoreOrderController)
+            if ($request->has('order_status') && $request->order_status === '') {
+                $request->merge(['order_status' => 'all']);
             }
+            $orderStatus = $request->order_status;
             $role = $user?->getRole();
             $userRole = $role?->value ?? null;
 
