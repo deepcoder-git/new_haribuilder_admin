@@ -247,7 +247,7 @@ class TransportManagerController extends Controller
 
             $user = $request->user();
             if(!isset($request->order_status) && $request->order_status == '') {
-                $request->merge(['order_status' => 'all']);
+                $orderStatus =  $request->merge(['order_status' => 'all']);
             }else{
                 $orderStatus = $request->delivery_status ?? 'all';
             }
