@@ -1,7 +1,7 @@
 <?php
  
 declare(strict_types=1);
-
+ 
 use App\Src\Api\Modules\Auth\LoginController;
 use App\Src\Api\Modules\Profile\ProfileController;
 use App\Src\Api\Modules\DashboardController;
@@ -9,9 +9,9 @@ use App\Src\Api\Modules\SiteManagement\OrderController;
 use App\Src\Api\Modules\StoreManagement\StoreOrderController;
 use App\Src\Api\Modules\TransportManagement\TransportManagerController;
 use Illuminate\Support\Facades\Route;
+ 
 
-
-
+ 
 Route::middleware(['api'])->group(function () {
     Route::group(['prefix' => 'api/v1', 'as' => 'api.v1.'], function () {
         Route::post('auth/login', [LoginController::class, 'login'])->name('login');

@@ -31,7 +31,6 @@ class LpoForm extends Component
 
     public ?int $site_id = null;
     public ?int $site_manager_id = null;
-    public string $sale_date = '';
     public ?string $expected_delivery_date = null;
     public ?string $priority = null;
     public ?string $note = null;
@@ -108,7 +107,6 @@ class LpoForm extends Component
 
             $this->site_id = $order->site_id;
             $this->site_manager_id = $order->site_manager_id;
-            $this->sale_date = $order->sale_date ? $order->sale_date->format('Y-m-d') : '';
             $this->expected_delivery_date = $order->expected_delivery_date ? $order->expected_delivery_date->format('Y-m-d') : null;
             $this->priority = $order->priority;
             $this->note = $order->note;
@@ -552,7 +550,6 @@ class LpoForm extends Component
             $payload = [
                 'site_id' => $this->site_id,
                 'site_manager_id' => $this->site_manager_id,
-                'sale_date' => $this->sale_date ?: now()->format('Y-m-d'),
                 'expected_delivery_date' => $this->expected_delivery_date,
                 'priority' => $this->priority,
                 'note' => $this->note,

@@ -19,7 +19,6 @@ class OrderService extends BaseCrudService
             'site_id' => 'required|exists:sites,id',
             'site_manager_id' => 'nullable|exists:moderators,id',
             'transport_manager_id' => 'nullable|exists:moderators,id',
-            'sale_date' => 'required|date',
             'expected_delivery_date' => 'nullable|date',
             'drop_location' => 'nullable|string|max:255',
             'document_details' => 'nullable|string',

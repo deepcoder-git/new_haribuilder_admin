@@ -28,6 +28,8 @@ use App\Services\OrderCustomProductManager;
 use App\Models\Product;
 use App\Utility\Enums\StoreEnum;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+
 
 
 class StoreOrderController extends Controller
@@ -79,7 +81,24 @@ class StoreOrderController extends Controller
                     'products.productImages',
                     'products.materials',
                     'customProducts.images'
-                ])->where('is_lpo', 0)
+                ])
+                ->where('is_lpo', 0)
+                // Restrict orders based on logged-in store manager role and product types
+                ->where(function (Builder $q) use ($userRole) {
+                    // Also allow orders that have products for this store type
+                    if ($userRole === RoleEnum::WorkshopStoreManager->value) {
+                        // Workshop Store Manager: warehouse products OR custom products
+                        $q->orWhereHas('products', function ($productQuery) {
+                            $productQuery->where('store', StoreEnum::WarehouseStore->value);
+                        })
+                        ->orWhere('is_custom_product', 1);
+                    } elseif ($userRole === RoleEnum::StoreManager->value) {
+                        // Hardware Store Manager: hardware products only
+                        $q->orWhereHas('products', function ($productQuery) {
+                            $productQuery->where('store', StoreEnum::HardwareStore->value);
+                        });
+                    }
+                })
                 ->when($orderStatus && $orderStatus !== 'all', function (Builder $query) use ($orderStatus) {
                     $normalizedStatus = trim(strtolower((string) $orderStatus));
                     if ($normalizedStatus === 'approve' || $normalizedStatus === 'approved') {
@@ -97,6 +116,22 @@ class StoreOrderController extends Controller
                     }
 
                     $query->where('status', $normalizedStatus);
+                })
+                // Filter out orders where products are not available
+                // Order must have at least one of: valid regular products OR custom products
+                ->where(function(Builder $q) {
+                    // Check for regular products: ensure product_id in order_products references an existing product
+                    $q->whereExists(function($query) {
+                        $query->select(DB::raw(1))
+                            ->from('order_products')
+                            ->whereColumn('order_products.order_id', 'orders.id')
+                            ->join('products', 'order_products.product_id', '=', 'products.id')
+                            ->whereNotNull('products.id');
+                    })
+                    // OR check for custom products (custom products always exist if in order_custom_products table)
+                    ->orWhereHas('customProducts', function($customQuery) {
+                        $customQuery->whereNotNull('order_custom_products.id');
+                    });
                 })
                 ->orderByDesc('id');
             

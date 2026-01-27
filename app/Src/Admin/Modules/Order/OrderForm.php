@@ -2618,7 +2618,6 @@ class OrderForm extends Component
             'site_manager_id' => $this->site_manager_id ? (int)$this->site_manager_id : null,
             'transport_manager_id' => $this->transport_manager_id ? (int)$this->transport_manager_id : null,
             'site_id' => $this->site_id ? (int)$this->site_id : null,
-            'sale_date' => now()->format('Y-m-d'),
             'expected_delivery_date' => $this->expected_delivery_date ?: null,
             'drop_location' => $this->drop_location,
             'priority' => $this->priority ?: null,
@@ -3413,10 +3412,6 @@ class OrderForm extends Component
                     if (empty($data['status']) || !isset($data['status']) || $data['status'] === OrderStatusEnum::Delivery->value) {
                         $data['status'] = OrderStatusEnum::Pending->value;
                     }
-                    if (empty($data['sale_date'])) {
-                        $data['sale_date'] = now()->format('Y-m-d');
-                    }
-                    
                     // Determine product types and initialize product_status
                     $hasLpoProducts = false;
                     $hasHardwareProducts = false;

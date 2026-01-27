@@ -1151,7 +1151,7 @@ class OrderDatatable extends Component
             $query->where('site_id', $this->siteFilter);
         }
 
-        $sortField = in_array($this->sortField, ['id', 'created_at', 'sale_date', 'status']) 
+        $sortField = in_array($this->sortField, ['id', 'created_at', 'status']) 
             ? $this->sortField 
             : 'id';
 
