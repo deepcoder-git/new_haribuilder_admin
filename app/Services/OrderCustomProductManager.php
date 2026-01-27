@@ -26,7 +26,6 @@ class OrderCustomProductManager
 
         // Extract custom_note (not part of product_details)
         $customNote = $data['custom_note'] ?? null;
-
         // Prepare product_ids (separate column, like admin panel)
         $productIds = $this->prepareProductIds($data['product_ids'] ?? null);
 
