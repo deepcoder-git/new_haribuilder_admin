@@ -15,6 +15,8 @@ enum StoreEnum: string
 
     case WarehouseStore = 'warehouse_store';
 
+    case WorkshopStore = 'workshop_store';
+
     case LPO = 'lpo';
 
     public function getName(): string
@@ -23,6 +25,7 @@ enum StoreEnum: string
             self::HardwareStore => 'Hardware Store',
             self::WarehouseStore => 'Workshop store',
             self::LPO => 'LPO(Local Purchase Order)',
+            self::WorkshopStore => 'Workshop Store'
         };
     }
 }
