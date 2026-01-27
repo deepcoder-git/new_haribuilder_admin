@@ -26,11 +26,13 @@ class OrderCustomProductManager
 
         // Extract custom_note (not part of product_details)
         $customNote = $data['custom_note'] ?? null;
+
         // Prepare product_ids (separate column, like admin panel)
         $productIds = $this->prepareProductIds($data['product_ids'] ?? null);
 
-        // Process products array if provided (for syncing to order_products with quantities)
-        $productsToSync = [];
+        // Process products array if provided (store in product_details as connected_products)
+        // DO NOT sync to order_products table - keep custom product quantities separate from regular order products
+        $connectedProducts = [];
         if (isset($data['products']) && is_array($data['products']) && !empty($data['products'])) {
             foreach ($data['products'] as $productData) {
                 if (isset($productData['product_id']) && $productData['product_id'] !== null && $productData['product_id'] !== '') {
@@ -41,10 +43,10 @@ class OrderCustomProductManager
                         $productData['quantity'] = $productData['calqty'];
                     }
                     
-                    // Store product data with quantity for order_products sync
+                    // Store product data with quantity in connected_products array
                     $productQuantity = $productData['calqty'] ?? $productData['quantity'] ?? 1; // Default to 1 if not provided
                     
-                    $productsToSync[$productId] = [
+                    $connectedProducts[] = [
                         'product_id' => $productId,
                         'quantity' => (int) $productQuantity,
                     ];
@@ -64,7 +66,7 @@ class OrderCustomProductManager
                     $hasQuantityInfo = true;
                     $productId = (int) $item['product_id'];
                     $quantity = isset($item['quantity']) ? (int) $item['quantity'] : 1;
-                    $productsToSync[$productId] = [
+                    $connectedProducts[] = [
                         'product_id' => $productId,
                         'quantity' => $quantity > 0 ? $quantity : 1,
                     ];
@@ -88,14 +90,14 @@ class OrderCustomProductManager
                     foreach ($productIds as $productId) {
                         $productId = (int) $productId;
                         $quantity = isset($productQuantities[$productId]) ? (int) $productQuantities[$productId] : 1;
-                        $productsToSync[$productId] = [
+                        $connectedProducts[] = [
                             'product_id' => $productId,
                             'quantity' => $quantity > 0 ? $quantity : 1,
                         ];
                     }
                 } elseif (count($productIds) === 1 && $quantityFromDetails !== null && $quantityFromDetails > 0) {
                     // Single product_id with quantity from product_details
-                    $productsToSync[$productIds[0]] = [
+                    $connectedProducts[] = [
                         'product_id' => $productIds[0],
                         'quantity' => (int) $quantityFromDetails,
                     ];
@@ -103,13 +105,18 @@ class OrderCustomProductManager
                     // Multiple product_ids or no quantity available, default to quantity 1 for each
                     foreach ($productIds as $productId) {
                         $productId = (int) $productId;
-                        $productsToSync[$productId] = [
+                        $connectedProducts[] = [
                             'product_id' => $productId,
                             'quantity' => 1,
                         ];
                     }
                 }
             }
+        }
+
+        // Store connected products in product_details
+        if (!empty($connectedProducts)) {
+            $productDetails['connected_products'] = $connectedProducts;
         }
 
         // Create the custom product
@@ -123,11 +130,6 @@ class OrderCustomProductManager
         // Save images if provided
         if (!empty($imagePaths)) {
             $this->saveImages($customProduct->id, $imagePaths);
-        }
-
-        // Sync product_ids to order_products table for warehouse products
-        if (!empty($productsToSync)) {
-            $this->syncProductsToOrderProducts($orderId, $productsToSync);
         }
 
         return $customProduct;
@@ -198,7 +200,7 @@ class OrderCustomProductManager
         $customProduct = OrderCustomProduct::findOrFail($customProductId);
 
         // Update product details if provided
-        if (isset($data['product_details']) || $this->hasProductDetailFields($data)) {
+        if (isset($data['product_details']) || $this->hasProductDetailFields($data) || isset($data['connected_products'])) {
             $currentDetails = $customProduct->product_details ?? [];
             
             if (isset($data['product_details'])) {
@@ -208,6 +210,11 @@ class OrderCustomProductManager
                 // Individual fields provided - merge with existing and prepare
                 $mergedData = array_merge($currentDetails, $data);
                 $newDetails = $this->prepareProductDetails($mergedData);
+            }
+            
+            // Handle connected_products separately if provided directly (not through product_details)
+            if (isset($data['connected_products']) && !isset($data['product_details'])) {
+                $newDetails['connected_products'] = $data['connected_products'];
             }
             
             $customProduct->product_details = $newDetails;
@@ -404,6 +411,12 @@ class OrderCustomProductManager
         // Store unit_id if provided and not empty
         if (isset($data['unit_id']) && $data['unit_id'] !== '' && $data['unit_id'] !== null) {
             $details['unit_id'] = (int) $data['unit_id'];
+        }
+
+        // Store connected_products if provided (for custom product connected products)
+        // This allows custom product connected products to have separate quantities from regular order products
+        if (isset($data['connected_products']) && is_array($data['connected_products'])) {
+            $details['connected_products'] = $data['connected_products'];
         }
 
         return $details;

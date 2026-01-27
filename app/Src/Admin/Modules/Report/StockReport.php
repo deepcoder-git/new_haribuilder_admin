@@ -82,9 +82,15 @@ class StockReport extends Component
 
         if ($this->onlyLowStock) {
             // threshold must be present and current qty <= threshold
-            $query->whereNotNull('low_stock_threshold')
+            // Wrap query in subquery to use WHERE instead of HAVING (which requires GROUP BY)
+            $baseQuery = clone $query;
+            $query = Product::query()
+                ->fromSub($baseQuery, 'products_with_qty')
+                ->select('products_with_qty.*')
+                ->whereNotNull('low_stock_threshold')
                 ->where('low_stock_threshold', '>', 0)
-                ->havingRaw('COALESCE(current_qty, available_qty, 0) <= low_stock_threshold');
+                ->whereRaw('COALESCE(current_qty, available_qty, 0) <= low_stock_threshold')
+                ->with('category'); // Re-apply relationships since we created a new query
         }
 
         return $query->paginate($this->perPage);
@@ -141,5 +147,3 @@ class StockReport extends Component
         ]);
     }
 }
-
-

@@ -1193,179 +1193,23 @@ class OrderController extends Controller
                 }
             }
 
-            // Get all existing order_products for this order (to check what exists)
-            $allExistingOrderProducts = DB::table('order_products')
-                ->where('order_id', $customProductOrderId)
-                ->get()
-                ->keyBy('product_id')
-                ->toArray();
-
-            // Get the original product IDs from this custom product before update
-            // This helps us track which products were previously in this custom product
-            $originalCustomProductIds = [];
-            $originalCustomProductQuantities = [];
-            if ($existingCustomProduct) {
-                $originalProductIds = $existingCustomProduct->getAllProductIds();
-                $originalCustomProductIds = $originalProductIds;
-                
-                // For each original product, get the quantity that this custom product contributed
-                // We'll use this to properly replace quantities when updating
-                $originalProductDetails = $existingCustomProduct->product_details ?? [];
-                $originalProductDetailsQty = (int) ($originalProductDetails['quantity'] ?? 0);
-                
-                foreach ($originalProductIds as $originalProductId) {
-                    // For single product custom products, use product_details quantity
-                    // For multiple products, we'll need to estimate or use order_products as fallback
-                    $productDetailsProductId = $originalProductDetails['product_id'] ?? null;
-                    
-                    if ($productDetailsProductId && !is_array($productDetailsProductId) && $productDetailsProductId == $originalProductId) {
-                        // Single product - use product_details quantity directly
-                        $originalCustomProductQuantities[$originalProductId] = $originalProductDetailsQty;
-                    } else {
-                        // Multiple products - check if we can get from order_products
-                        // This is an approximation: if product exists, assume it was added by this custom product
-                        // In a perfect world, we'd track per-product quantities, but for now this works
-                        $originalOrderProduct = $allExistingOrderProducts[$originalProductId] ?? null;
-                        if ($originalOrderProduct) {
-                            // Store current quantity as what this custom product contributed
-                            // Note: This assumes the product was added by this custom product
-                            $originalCustomProductQuantities[$originalProductId] = (int) ($originalOrderProduct->quantity ?? 0);
-                        } else {
-                            $originalCustomProductQuantities[$originalProductId] = 0;
-                        }
-                    }
-                }
-            }
-
-            // Sync order_products table
-            // 1. Add or update products that are in the request
+            // Store connected product quantities in custom product's product_details
+            // DO NOT sync to order_products table - keep custom product quantities separate from regular order products
+            // This allows regular products and custom product connected products to have separate quantities
+            $connectedProducts = [];
             foreach ($productsToProcess as $productId => $productInfo) {
-                $existingOrderProduct = $allExistingOrderProducts[$productId] ?? null;
-                $newQuantity = (int) ($productInfo['quantity'] ?? 0);
-
-                if ($existingOrderProduct) {
-                    // Product already exists in order_products
-                    $existingQuantity = (int) ($existingOrderProduct->quantity ?? 0);
-                    $wasInOriginalCustomProduct = in_array($productId, $originalCustomProductIds);
-                    $originalCustomQty = $originalCustomProductQuantities[$productId] ?? 0;
-                    
-                    if ($wasInOriginalCustomProduct && $originalCustomQty > 0) {
-                        // This product was previously in this custom product
-                        // Replace: subtract the old quantity that was added by this custom product, add new quantity
-                        // We assume the originalCustomQty represents what this custom product contributed
-                        // Calculate base quantity (what exists outside of this custom product)
-                        $baseQuantity = max(0, $existingQuantity - $originalCustomQty);
-                        $totalQuantity = $baseQuantity + $newQuantity;
-                    } else {
-                        // This product exists from regular order (or wasn't in this custom product before)
-                        // Add the new custom product quantity to existing quantity
-                        $totalQuantity = $existingQuantity + $newQuantity;
-                    }
-                    
-                    // Update existing order_product quantity with aggregated total
-                    DB::table('order_products')
-                        ->where('order_id', $customProductOrderId)
-                        ->where('product_id', $productId)
-                        ->update([
-                            'quantity' => $totalQuantity,
-                            'updated_at' => now(),
-                        ]);
-                } else {
-                    // Create new order_product entry
-                    DB::table('order_products')->insert([
-                        'order_id' => $customProductOrderId,
-                        'product_id' => $productId,
-                        'quantity' => $newQuantity,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
-                }
+                $connectedProducts[] = [
+                    'product_id' => $productId,
+                    'quantity' => (int) ($productInfo['quantity'] ?? 0),
+                ];
             }
-
-            // 2. Remove products that were previously linked to this custom product but are NOT in the request
-            // Only remove if products array was provided with product_ids (meaning we want to sync/replace)
-            // This handles the case where user wants to replace old products with new ones
-            if (isset($data['products']) && is_array($data['products']) && !empty($data['products'])) {
-                // Check if any product in the array has product_id (meaning we're syncing products)
-                $hasProductIdsInRequest = false;
-                foreach ($data['products'] as $product) {
-                    if (isset($product['product_id']) && $product['product_id'] !== null && $product['product_id'] !== '') {
-                        $hasProductIdsInRequest = true;
-                        break;
-                    }
-                }
-                
-                // Only remove if we have product_ids in the request (indicating we want to replace)
-                if ($hasProductIdsInRequest && !empty($existingProductIds)) {
-                    $productsToKeep = array_keys($productsToProcess);
-                    $productsToRemove = array_diff($existingProductIds, $productsToKeep);
-                    
-                    // Remove products that were in the old list but not in the new list
-                    // Subtract the quantity that was added by this custom product
-                    if (!empty($productsToRemove)) {
-                        foreach ($productsToRemove as $productIdToRemove) {
-                            $wasInOriginalCustomProduct = in_array($productIdToRemove, $originalCustomProductIds);
-                            $originalCustomQty = $originalCustomProductQuantities[$productIdToRemove] ?? 0;
-                            
-                            if ($wasInOriginalCustomProduct && $originalCustomQty > 0) {
-                                // Get current quantity in order_products
-                                $currentOrderProduct = DB::table('order_products')
-                                    ->where('order_id', $customProductOrderId)
-                                    ->where('product_id', $productIdToRemove)
-                                    ->first();
-                                
-                                if ($currentOrderProduct) {
-                                    $currentQuantity = (int) ($currentOrderProduct->quantity ?? 0);
-                                    // Subtract the quantity that was added by this custom product
-                                    $newQuantity = max(0, $currentQuantity - $originalCustomQty); // Don't go below 0
-                                    
-                                    // Check if this product is used by other custom products
-                                    $otherCustomProducts = OrderCustomProduct::where('order_id', $customProductOrderId)
-                                        ->where('id', '!=', $customProductId)
-                                        ->get();
-                                    
-                                    $isUsedByOthers = false;
-                                    foreach ($otherCustomProducts as $otherCustomProduct) {
-                                        $otherProductIds = $otherCustomProduct->getAllProductIds();
-                                        if (in_array($productIdToRemove, $otherProductIds)) {
-                                            $isUsedByOthers = true;
-                                            break;
-                                        }
-                                    }
-                                    
-                                    if ($newQuantity > 0) {
-                                        // Update quantity (subtract the custom product quantity)
-                                        DB::table('order_products')
-                                            ->where('order_id', $customProductOrderId)
-                                            ->where('product_id', $productIdToRemove)
-                                            ->update([
-                                                'quantity' => $newQuantity,
-                                                'updated_at' => now(),
-                                            ]);
-                                    } else {
-                                        // Quantity would be 0 or negative
-                                        // Only delete if not used by other custom products
-                                        if (!$isUsedByOthers) {
-                                            DB::table('order_products')
-                                                ->where('order_id', $customProductOrderId)
-                                                ->where('product_id', $productIdToRemove)
-                                                ->delete();
-                                        } else {
-                                            // Keep it but set to 0 (other custom product might add to it later)
-                                            DB::table('order_products')
-                                                ->where('order_id', $customProductOrderId)
-                                                ->where('product_id', $productIdToRemove)
-                                                ->update([
-                                                    'quantity' => 0,
-                                                    'updated_at' => now(),
-                                                ]);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            
+            // Store connected products in product_details
+            if (!empty($connectedProducts)) {
+                $updatePayload['connected_products'] = $connectedProducts;
+            } elseif (isset($data['products']) && is_array($data['products']) && !empty($data['products'])) {
+                // If products array was provided but empty, clear connected_products
+                $updatePayload['connected_products'] = [];
             }
 
             // Update product_id in update payload (for product_details)
@@ -2329,7 +2173,7 @@ class OrderController extends Controller
         // Use the current order directly (no parent/child relationships)
         $targetOrder = $order;
         
-        // Note: Single order can contain products from all store types (hardware, warehouse, LPO)
+        // Note: Single order can contain products from all store types (hardware, workshop, LPO)
         // No need to validate store matching as all products are managed in one order
 
         // Check if product already exists in the target order
@@ -2546,7 +2390,7 @@ class OrderController extends Controller
         $order->load('products', 'customProducts.images');
 
         $hasHardwareProducts = false;
-        $hasWarehouseProducts = false;
+        $hasWorkshopProducts = false;
         $hasLpoProducts = false;
         $hasCustomProducts = $order->customProducts->isNotEmpty();
         
@@ -2557,7 +2401,7 @@ class OrderController extends Controller
             } elseif ($product->store === StoreEnum::HardwareStore) {
                 $hasHardwareProducts = true;
             } elseif ($product->store === StoreEnum::WarehouseStore) {
-                $hasWarehouseProducts = true;
+                $hasWorkshopProducts = true;
             }
         }
         
@@ -2567,8 +2411,8 @@ class OrderController extends Controller
         if ($hasHardwareProducts && !isset($productStatus['hardware'])) {
             $productStatus['hardware'] = 'pending';
         }
-        if (($hasWarehouseProducts || $hasCustomProducts) && !isset($productStatus['warehouse'])) {
-            $productStatus['warehouse'] = 'pending';
+        if (($hasWorkshopProducts || $hasCustomProducts) && !isset($productStatus['workshop'])) {
+            $productStatus['workshop'] = 'pending';
         }
         if ($hasLpoProducts && !isset($productStatus['lpo'])) {
             $productStatus['lpo'] = 'pending';
@@ -2584,17 +2428,8 @@ class OrderController extends Controller
             'is_custom_product' => $hasCustomProducts,
         ];
         
-        // Update store if needed (priority: Hardware > Warehouse > LPO)
-        if ($hasHardwareProducts && $order->store !== StoreEnum::HardwareStore->value) {
-            $updateData['store'] = StoreEnum::HardwareStore->value;
-            // $updateData['store_manager_role'] = RoleEnum::StoreManager->value;
-        } elseif (($hasWarehouseProducts || $hasCustomProducts) && $order->store !== StoreEnum::WarehouseStore->value && !$hasHardwareProducts) {
-            $updateData['store'] = StoreEnum::WarehouseStore->value;
-            // $updateData['store_manager_role'] = RoleEnum::WorkshopStoreManager->value;
-        } elseif ($hasLpoProducts && !$hasHardwareProducts && !$hasWarehouseProducts && !$hasCustomProducts) {
-            $updateData['store'] = StoreEnum::LPO->value;
-            // $updateData['store_manager_role'] = null;
-        }
+        // Store column removed - store type is determined from products
+        // No need to update store column
         
         $order->update($updateData);
         $order->syncOrderStatusFromProductStatuses();
@@ -3258,21 +3093,21 @@ class OrderController extends Controller
 
     /**
      * Resolve which product_status key should be used for the given order/action.
-     * Both warehouse and custom products use the "warehouse" key in product_status JSON.
+     * Both workshop and custom products use the "workshop" key in product_status JSON.
      * 
      * @param Order $order The order to resolve product_status type for
      * @param string|null $typeName Explicit type name from request (optional)
      * @param mixed $user The logged-in user (optional, for role-based resolution)
-     * @return string The product_status key to update ('hardware', 'warehouse', or 'lpo')
+     * @return string The product_status key to update ('hardware', 'workshop', or 'lpo')
      */
     private function resolveProductStatusTypeForOrder(Order $order, ?string $typeName = null, $user = null): string
     {
         $typeName = $typeName ? strtolower($typeName) : null;
-        $validTypes = ['hardware', 'warehouse', 'lpo', 'custom'];
+        $validTypes = ['hardware', 'workshop', 'lpo', 'custom'];
 
         if ($typeName && in_array($typeName, $validTypes, true)) {
-            // Treat "custom" as "warehouse" in product_status JSON
-            return $typeName === 'custom' ? 'warehouse' : $typeName;
+            // Treat "custom" as "workshop" in product_status JSON
+            return $typeName === 'custom' ? 'workshop' : $typeName;
         }
 
         // If user is provided, determine based on user's role and actual products in order
@@ -3287,14 +3122,14 @@ class OrderController extends Controller
             
             // Check which product types actually exist in the order
             $hasHardwareProducts = false;
-            $hasWarehouseProducts = false;
+            $hasWorkshopProducts = false;
             $hasCustomProducts = $order->customProducts && $order->customProducts->isNotEmpty();
             
             foreach ($order->products as $product) {
                 if ($product->store === StoreEnum::HardwareStore) {
                     $hasHardwareProducts = true;
                 } elseif ($product->store === StoreEnum::WarehouseStore) {
-                    $hasWarehouseProducts = true;
+                    $hasWorkshopProducts = true;
                 }
             }
             
@@ -3305,10 +3140,10 @@ class OrderController extends Controller
                     return 'hardware';
                 }
             } elseif ($userRoleValue === RoleEnum::WorkshopStoreManager->value) {
-                // Workshop store Manager: both warehouse and custom products use 'warehouse' key
-                // Update warehouse product_status if warehouse products OR custom products exist
-                if ($hasWarehouseProducts || $hasCustomProducts) {
-                    return 'warehouse'; // Both warehouse and custom products use 'warehouse' key
+                // Workshop store Manager: both workshop and custom products use 'workshop' key
+                // Update workshop product_status if workshop products OR custom products exist
+                if ($hasWorkshopProducts || $hasCustomProducts) {
+                    return 'workshop'; // Both workshop and custom products use 'workshop' key
                 }
             }
         }
@@ -3319,18 +3154,30 @@ class OrderController extends Controller
         }
 
         if ($order->is_custom_product) {
-            return 'warehouse';
+            return 'workshop';
         }
 
-        $store = $order->store;
+        // Determine store type from products in the order
+        $hasHardwareProducts = false;
+        $hasWorkshopProducts = false;
+        
+        if ($order->relationLoaded('products')) {
+            foreach ($order->products as $product) {
+                if ($product->store === StoreEnum::HardwareStore) {
+                    $hasHardwareProducts = true;
+                } elseif ($product->store === StoreEnum::WarehouseStore) {
+                    $hasWorkshopProducts = true;
+                }
+            }
+        }
 
-        // Handle both raw string values and StoreEnum casts
-        if ($store === StoreEnum::HardwareStore->value || $store === StoreEnum::HardwareStore) {
+        // Priority: Hardware > Workshop
+        if ($hasHardwareProducts) {
             return 'hardware';
         }
 
-        if ($store === StoreEnum::WarehouseStore->value || $store === StoreEnum::WarehouseStore) {
-            return 'warehouse';
+        if ($hasWorkshopProducts) {
+            return 'workshop';
         }
 
         // Default to hardware if we cannot determine
@@ -3885,7 +3732,7 @@ class OrderController extends Controller
             $saleDate = now()->toDateString();
             $expectedDeliveryDate = $this->parseDeliveryDate($formData['expected_delivery_date'] ?? null);
 
-            // Create a single order with all products (hardware, warehouse, LPO, custom)
+            // Create a single order with all products (hardware, workshop, LPO, custom)
             $order = $this->createSingleOrder(
                 $request,
                 $productsData,
@@ -4095,7 +3942,7 @@ class OrderController extends Controller
         $quantity = isset($product['quantity']) && $product['quantity'] !== '' ? (float) $product['quantity'] : null;
         // $unitId = !empty($product['unit_id']) ? (int) $product['unit_id'] : null;
 
-        // Handle product_ids (for warehouse products connected to custom product)
+        // Handle product_ids (for workshop products connected to custom product)
         $productIds = null;
         if (isset($product['product_ids'])) {
             $productIds = $product['product_ids'];
@@ -4126,7 +3973,7 @@ class OrderController extends Controller
             $result['product_ids'] = $productIds;
         }
 
-        // Include products array if provided (for syncing warehouse products to order_products)
+        // Include products array if provided (for syncing workshop products to order_products)
         if ($products !== null) {
             $result['products'] = $products;
         }
@@ -4233,18 +4080,18 @@ class OrderController extends Controller
     }
 
     /**
-     * Separate products by store type (Hardware, Warehouse, LPO)
-     * Custom products are grouped with Warehouse
+     * Separate products by store type (Hardware, Workshop, LPO)
+     * Custom products are grouped with Workshop
      * 
      * @param array $productsData
      * @param array $customProductsData
-     * @return array Returns grouped products: ['hardware' => [...], 'warehouse' => [...], 'lpo' => [...]]
+     * @return array Returns grouped products: ['hardware' => [...], 'workshop' => [...], 'lpo' => [...]]
      */
     private function separateProductsByStoreType(array $productsData, array $customProductsData = []): array
     {
         $groupedProducts = [
             'hardware' => [],
-            'warehouse' => [],
+            'workshop' => [],
             'lpo' => [],
         ];
 
@@ -4267,21 +4114,21 @@ class OrderController extends Controller
                     } elseif ($product->store === StoreEnum::HardwareStore) {
                         $groupedProducts['hardware'][$productId] = $productData;
                     } elseif ($product->store === StoreEnum::WarehouseStore) {
-                        $groupedProducts['warehouse'][$productId] = $productData;
+                        $groupedProducts['workshop'][$productId] = $productData;
                     } else {
-                        // Default to warehouse for unknown store types
-                        $groupedProducts['warehouse'][$productId] = $productData;
+                        // Default to workshop for unknown store types
+                        $groupedProducts['workshop'][$productId] = $productData;
                     }
                 } else {
-                    // If product not found or no store, default to warehouse
-                    $groupedProducts['warehouse'][$productId] = $productData;
+                    // If product not found or no store, default to workshop
+                    $groupedProducts['workshop'][$productId] = $productData;
                 }
             }
         }
 
-        // Custom products are always grouped with Warehouse
+        // Custom products are always grouped with Workshop
         if (!empty($customProductsData)) {
-            $groupedProducts['warehouse']['custom_products'] = $customProductsData;
+            $groupedProducts['workshop']['custom_products'] = $customProductsData;
         }
 
         return $groupedProducts;
@@ -4293,14 +4140,14 @@ class OrderController extends Controller
      */
     private function resolveStoreManager(array $regularProductsData, array $customProductsData = []): ?int
     {
-        // If we have only custom products (no regular products), assign Warehouse/Workshop Store Manager
+        // If we have only custom products (no regular products), assign Workshop/Workshop Store Manager
         if (empty($regularProductsData) && !empty($customProductsData)) {
-            $warehouseManager = Moderator::where('role', RoleEnum::WorkshopStoreManager->value)
+            $workshopManager = Moderator::where('role', RoleEnum::WorkshopStoreManager->value)
                 ->where('status', StatusEnum::Active->value)
                 ->first();
 
-            if ($warehouseManager) {
-                return (int) $warehouseManager->id;
+            if ($workshopManager) {
+                return (int) $workshopManager->id;
             }
             return $this->getDefaultStoreManager();
         }
@@ -4421,7 +4268,7 @@ class OrderController extends Controller
     }
 
     /**
-     * Create a single order with all products (hardware, warehouse, LPO, custom)
+     * Create a single order with all products (hardware, workshop, LPO, custom)
      * All products are managed under one order
      * 
      * @param Request $request
@@ -4452,7 +4299,7 @@ class OrderController extends Controller
         // Determine if order has LPO products
         $hasLpoProducts = false;
         $hasHardwareProducts = false;
-        $hasWarehouseProducts = false;
+        $hasWorkshopProducts = false;
         $hasCustomProducts = !empty($customProductsData);
 
         if (!empty($productsData)) {
@@ -4467,27 +4314,27 @@ class OrderController extends Controller
                 } elseif ($product->store === StoreEnum::HardwareStore) {
                     $hasHardwareProducts = true;
                 } elseif ($product->store === StoreEnum::WarehouseStore) {
-                    $hasWarehouseProducts = true;
+                    $hasWorkshopProducts = true;
                 }
             }
         }
 
         // Determine primary store and store manager role
-        // Priority: Hardware > Warehouse > LPO
+        // Priority: Hardware > Workshop > LPO
         $storeManagerRole = null;
         $store = null;
         
         if ($hasHardwareProducts) {
             $storeManagerRole = RoleEnum::StoreManager->value;
             $store = StoreEnum::HardwareStore->value;
-        } elseif ($hasWarehouseProducts || $hasCustomProducts) {
+        } elseif ($hasWorkshopProducts || $hasCustomProducts) {
             $storeManagerRole = RoleEnum::WorkshopStoreManager->value;
             $store = StoreEnum::WarehouseStore->value;
         } elseif ($hasLpoProducts) {
             $storeManagerRole = null;
             $store = StoreEnum::LPO->value;
         } else {
-            // Default to warehouse if no products
+            // Default to workshop if no products
             $storeManagerRole = RoleEnum::WorkshopStoreManager->value;
             $store = StoreEnum::WarehouseStore->value;
         }
@@ -4495,7 +4342,7 @@ class OrderController extends Controller
         // Initialize product_status based on product groups
         $productStatus = [
             'hardware' => $hasHardwareProducts ? 'pending' : null,
-            'warehouse' => ($hasWarehouseProducts || $hasCustomProducts) ? 'pending' : null,
+            'workshop' => ($hasWorkshopProducts || $hasCustomProducts) ? 'pending' : null,
             'lpo' => [], // Supplier-wise: {supplier_id: status}
             'custom' => $hasCustomProducts ? 'pending' : null,
         ];
@@ -4521,7 +4368,7 @@ class OrderController extends Controller
         $order->status = OrderStatusEnum::Pending;
         $order->is_completed = false;
         $order->store_manager_role = $storeManagerRole;
-        $order->store = $store;
+        // Store column removed - store type determined from products
         $order->product_status = $productStatus;
         $order->supplier_id = $supplierMapping;
         $order->save();
@@ -4692,9 +4539,9 @@ class OrderController extends Controller
         $order->status = OrderStatusEnum::Pending;
         $order->is_completed = false;
 
-        // Set store_manager_role and store
+        // Set store_manager_role
         $order->store_manager_role = $storeManagerRole;
-        $order->store = $store;
+        // Store column removed - store type determined from products
 
         $order->save();
         return $order;
@@ -4730,9 +4577,9 @@ class OrderController extends Controller
         $order->status = OrderStatusEnum::Pending;
         $order->is_completed = false;
 
-        // LPO orders don't have store_manager_role, but have store
+        // LPO orders don't have store_manager_role
         $order->store_manager_role = null;
-        $order->store = $store;
+        // Store column removed - store type determined from products
 
         $order->save();
         return $order;
@@ -4766,9 +4613,9 @@ class OrderController extends Controller
         $order->status = OrderStatusEnum::Pending;
         $order->is_completed = false;
 
-        // Custom products are assigned to Warehouse/Workshop Store Manager
+        // Custom products are assigned to Workshop/Workshop Store Manager
         $order->store_manager_role = RoleEnum::WorkshopStoreManager->value;
-        $order->store = StoreEnum::WarehouseStore->value;
+        // Store column removed - store type determined from products
 
         $order->save();
         return $order;
@@ -5146,30 +4993,8 @@ class OrderController extends Controller
             $this->stockService = app(StockService::class);
         }
 
-        // Determine the order's store type
-        $orderStore = null;
-        if ($order->store) {
-            try {
-                if ($order->store instanceof StoreEnum) {
-                    $orderStore = $order->store;
-                } else {
-                    $orderStore = StoreEnum::from($order->store);
-                }
-            } catch (\ValueError $e) {
-                // If store value doesn't match any enum, try to determine from store_manager_role
-                Log::warning("OrderController: Invalid store value '{$order->store}' for order #{$order->id}, falling back to store_manager_role");
-            }
-        }
-        
-        // If store couldn't be determined from store field, use store_manager_role
-        if (!$orderStore && $order->store_manager_role) {
-            // Map store_manager_role to store type
-            if ($order->store_manager_role === RoleEnum::StoreManager->value) {
-                $orderStore = StoreEnum::HardwareStore;
-            } elseif ($order->store_manager_role === RoleEnum::WorkshopStoreManager->value) {
-                $orderStore = StoreEnum::WarehouseStore;
-            }
-        }
+        // Store column removed - process all products based on their own store type
+        // No need to filter by order store since products have their own store
 
         foreach ($productsData as $productId => $productInfo) {
             $product = Product::with('materials')->find($productId);
@@ -5178,21 +5003,9 @@ class OrderController extends Controller
                 continue;
             }
             
-            // Skip LPO products
+            // Skip LPO products (they don't use stock management)
             if ($product->store && $product->store === StoreEnum::LPO) {
                 continue;
-            }
-
-            // Filter products by store type: only check stock for products matching the order's store
-            if ($orderStore) {
-                // If order has a specific store type, only process products of that store type
-                if ($product->store && $product->store !== $orderStore) {
-                    // Skip products that don't match the order's store type
-                    $productStoreValue = $product->store instanceof StoreEnum ? $product->store->value : (string)$product->store;
-                    $orderStoreValue = $orderStore instanceof StoreEnum ? $orderStore->value : (string)$orderStore;
-                    Log::info("OrderController: Skipping stock check for product ID {$productId} (store: {$productStoreValue}) as it doesn't match order store ({$orderStoreValue}) for order #{$order->id}");
-                    continue;
-                }
             }
 
             $quantity = (int)($productInfo['quantity'] ?? 0);
@@ -5563,7 +5376,7 @@ class OrderController extends Controller
 
     /**
      * Update product_status for multiple products in a single order
-     * Supports updating status for hardware, warehouse, and LPO products in one request
+     * Supports updating status for hardware, workshop, and LPO products in one request
      * 
      * Example: ABC order with:
      * - P1 -> HARDWARE
@@ -5580,7 +5393,7 @@ class OrderController extends Controller
             $validator = Validator::make($request->all(), [
                 'order_id' => 'required|integer|exists:orders,id',
                 'products' => 'required|array|min:1',
-                'products.*.product_id' => 'required', // Can be integer (product ID) or string (product type: 'hardware', 'warehouse')
+                'products.*.product_id' => 'required', // Can be integer (product ID) or string (product type: 'hardware', 'workshop')
                 'products.*.status' => 'required|string|in:pending,approved,rejected',
                 'products.*.supplier_id' => 'sometimes|nullable|integer|exists:suppliers,id',
             ]);
@@ -5599,16 +5412,16 @@ class OrderController extends Controller
             foreach ($request->products as $index => $productUpdate) {
                 $productIdInput = $productUpdate['product_id'];
                 
-                // Skip validation for product type strings (hardware, warehouse)
-                if (is_string($productIdInput) && in_array($productIdInput, ['hardware', 'warehouse'], true)) {
+                // Skip validation for product type strings (hardware, workshop)
+                if (is_string($productIdInput) && in_array($productIdInput, ['hardware', 'workshop'], true)) {
                     continue;
                 }
                 
                 // Validate individual product IDs
                 if (!is_numeric($productIdInput)) {
                     return new ApiErrorResponse(
-                        data: ['errors' => ["Invalid product_id: {$productIdInput}. Must be product ID (integer) or product type ('hardware', 'warehouse')"]],
-                        message: "Invalid product_id: {$productIdInput}. Must be product ID (integer) or product type ('hardware', 'warehouse')",
+                        data: ['errors' => ["Invalid product_id: {$productIdInput}. Must be product ID (integer) or product type ('hardware', 'workshop')"]],
+                        message: "Invalid product_id: {$productIdInput}. Must be product ID (integer) or product type ('hardware', 'workshop')",
                         code: 422
                     );
                 }
@@ -5630,10 +5443,10 @@ class OrderController extends Controller
             $errors = [];
 
             // Track statuses by product type to handle multiple products of same type
-            // Hardware and Warehouse: combined status
+            // Hardware and Workshop: combined status
             // LPO: supplier-wise status (object with supplier IDs as keys)
             $hardwareStatuses = [];
-            $warehouseStatuses = [];
+            $workshopStatuses = [];
             $lpoSupplierStatuses = []; // {supplier_id: status}
 
             // Process each product update
@@ -5645,7 +5458,7 @@ class OrderController extends Controller
                 // RESTRICTION: If already approved/outfordelivery/in_transit/delivered, cannot change to pending or rejected
                 // Get current status for validation
                 $currentStatus = null;
-                if (is_string($productIdInput) && in_array($productIdInput, ['hardware', 'warehouse'], true)) {
+                if (is_string($productIdInput) && in_array($productIdInput, ['hardware', 'workshop'], true)) {
                     $currentStatus = $order->getProductStatus($productIdInput);
                 } elseif (is_numeric($productIdInput)) {
                     $product = $order->products->firstWhere('id', (int)$productIdInput);
@@ -5665,15 +5478,15 @@ class OrderController extends Controller
                     continue;
                 }
 
-                // Check if product_id is a product type (hardware, warehouse) or actual product ID
-                if (is_string($productIdInput) && in_array($productIdInput, ['hardware', 'warehouse'], true)) {
+                // Check if product_id is a product type (hardware, workshop) or actual product ID
+                if (is_string($productIdInput) && in_array($productIdInput, ['hardware', 'workshop'], true)) {
                     // Product type-based update (all products of that type)
                     $productType = $productIdInput;
                     
                     if ($productType === 'hardware') {
                         $hardwareStatuses[] = $status;
-                    } elseif ($productType === 'warehouse') {
-                        $warehouseStatuses[] = $status;
+                    } elseif ($productType === 'workshop') {
+                        $workshopStatuses[] = $status;
                     }
                     
                     $updatedProducts[] = [
@@ -5686,7 +5499,7 @@ class OrderController extends Controller
 
                 // Individual product update (requires valid product ID)
                 if (!is_numeric($productIdInput)) {
-                    $errors[] = "Invalid product_id: {$productIdInput}. Must be product ID (integer) or product type ('hardware', 'warehouse')";
+                    $errors[] = "Invalid product_id: {$productIdInput}. Must be product ID (integer) or product type ('hardware', 'workshop')";
                     continue;
                 }
 
@@ -5707,8 +5520,8 @@ class OrderController extends Controller
                     $productType = 'hardware';
                     $hardwareStatuses[] = $status;
                 } elseif ($productStore === StoreEnum::WarehouseStore) {
-                    $productType = 'warehouse';
-                    $warehouseStatuses[] = $status;
+                    $productType = 'workshop';
+                    $workshopStatuses[] = $status;
                 } elseif ($productStore === StoreEnum::LPO) {
                     $productType = 'lpo';
                     
@@ -5724,9 +5537,9 @@ class OrderController extends Controller
                     // Track LPO status by supplier
                     $lpoSupplierStatuses[(string)$supplierId] = $status;
                 } else {
-                    // For custom products or unknown types, use warehouse
-                    $productType = 'warehouse';
-                    $warehouseStatuses[] = $status;
+                    // For custom products or unknown types, use workshop
+                    $productType = 'workshop';
+                    $workshopStatuses[] = $status;
                 }
 
                 $updatedProducts[] = [
@@ -5756,19 +5569,19 @@ class OrderController extends Controller
                 }
             }
 
-            // Determine final status for warehouse (combined)
-            if (!empty($warehouseStatuses)) {
-                $uniqueStatuses = array_unique($warehouseStatuses);
+            // Determine final status for workshop (combined)
+            if (!empty($workshopStatuses)) {
+                $uniqueStatuses = array_unique($workshopStatuses);
                 if (count($uniqueStatuses) === 1) {
-                    $productStatuses['warehouse'] = $uniqueStatuses[0];
+                    $productStatuses['workshop'] = $uniqueStatuses[0];
                 } else {
                     // Priority: rejected > pending > approved
                     if (in_array('rejected', $uniqueStatuses, true)) {
-                        $productStatuses['warehouse'] = 'rejected';
+                        $productStatuses['workshop'] = 'rejected';
                     } elseif (in_array('pending', $uniqueStatuses, true)) {
-                        $productStatuses['warehouse'] = 'pending';
+                        $productStatuses['workshop'] = 'pending';
                     } else {
-                        $productStatuses['warehouse'] = 'approved';
+                        $productStatuses['workshop'] = 'approved';
                     }
                 }
             }
@@ -5806,11 +5619,11 @@ class OrderController extends Controller
                 }
             }
             
-            // Check warehouse status change
-            if (isset($productStatuses['warehouse']) && $productStatuses['warehouse'] === 'approved') {
-                $oldWarehouseStatus = $oldProductStatuses['warehouse'] ?? null;
-                if ($oldWarehouseStatus !== 'approved') {
-                    $typesToDeductStock[] = 'warehouse';
+            // Check workshop status change
+            if (isset($productStatuses['workshop']) && $productStatuses['workshop'] === 'approved') {
+                $oldWorkshopStatus = $oldProductStatuses['workshop'] ?? null;
+                if ($oldWorkshopStatus !== 'approved') {
+                    $typesToDeductStock[] = 'workshop';
                 }
             }
 
@@ -5861,7 +5674,7 @@ class OrderController extends Controller
      * Deduct stock for products of a specific type when product status changes to 'approved'
      * 
      * @param Order $order The order
-     * @param string $type Product type ('hardware' or 'warehouse')
+     * @param string $type Product type ('hardware' or 'workshop')
      * @return void
      */
     private function deductStockForProductType(Order $order, string $type): void
@@ -5888,8 +5701,8 @@ class OrderController extends Controller
                     }
                 }
             }
-        } elseif ($type === 'warehouse') {
-            // Get warehouse store products
+        } elseif ($type === 'workshop') {
+            // Get workshop store products
             foreach ($order->products as $product) {
                 if ($product->store === StoreEnum::WarehouseStore) {
                     $pivot = $product->pivot;
@@ -5901,7 +5714,7 @@ class OrderController extends Controller
                 }
             }
             
-            // Also include custom products (they belong to warehouse type)
+            // Also include custom products (they belong to workshop type)
             $customProducts = $order->customProducts;
             if ($customProducts && $customProducts->isNotEmpty()) {
                 foreach ($customProducts as $customProduct) {

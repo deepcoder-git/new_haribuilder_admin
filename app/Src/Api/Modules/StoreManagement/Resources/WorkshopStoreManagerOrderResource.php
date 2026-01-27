@@ -203,9 +203,35 @@ class WorkshopStoreManagerOrderResource extends JsonResource
                                 $connectedImageUrls[] = url(Storage::url($product->image));
                             }
 
-                            // Get quantity from order products relationship
-                            $orderProduct = $order->products->firstWhere('id', $productId);
-                            $quantity = $orderProduct ? (int) ($orderProduct->pivot->quantity ?? 0) : ($getproductRes->quantity ?? 0);
+                            // Get quantity from custom product's connected_products array
+                            // Custom product connected products are stored separately from regular order products
+                            $quantity = 0;
+                            $connectedProducts = $productDetails['connected_products'] ?? [];
+                            if (is_array($connectedProducts) && !empty($connectedProducts)) {
+                                // Find this product in connected_products array
+                                foreach ($connectedProducts as $connectedProduct) {
+                                    if (isset($connectedProduct['product_id']) && (int) $connectedProduct['product_id'] === $productId) {
+                                        $quantity = (int) ($connectedProduct['quantity'] ?? 0);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // Fallback: If not found in connected_products, try legacy product_details quantity
+                            if ($quantity == 0) {
+                                $productDetailsProductId = $productDetails['product_id'] ?? null;
+                                if ($productDetailsProductId) {
+                                    if (is_array($productDetailsProductId)) {
+                                        if (in_array($productId, array_map('intval', $productDetailsProductId))) {
+                                            $quantity = (int) ($productDetails['quantity'] ?? 0);
+                                        }
+                                    } else {
+                                        if ((int) $productDetailsProductId === $productId) {
+                                            $quantity = (int) ($productDetails['quantity'] ?? 0);
+                                        }
+                                    }
+                                }
+                            }
                             
                 // Use product's store type instead of order store (null-safe)
                 $productStore = $getproductRes->store ?? null;
@@ -410,13 +436,27 @@ class WorkshopStoreManagerOrderResource extends JsonResource
             $customProducts->push($customProductData);
         }
 
-        // Get all product IDs from root custom_products to filter duplicates
+        // Get all product IDs from root custom_products (connected products from custom products)
         $customProductIds = $rootCustomProducts->pluck('product_id')->filter()->unique()->toArray();
         
-        // Filter out products from regularProducts that exist in custom_products
-        // Connected products from custom products should NOT appear in root products array
-        $regularProducts = $regularProducts->reject(function ($item) use ($customProductIds) {
-            return isset($item['product_id']) && in_array($item['product_id'], $customProductIds);
+        // Get all product IDs from regular order_products (products added as regular products)
+        $regularProductIds = $order->products->pluck('id')->filter()->unique()->toArray();
+        
+        // Filter out products from regularProducts that exist ONLY in custom_products (not in regular order)
+        // 
+        // IMPORTANT: 
+        // - If a product exists in BOTH regular order AND custom product → show in BOTH places
+        // - If a product exists ONLY in custom product (not in regular order) → show ONLY under custom product
+        $regularProducts = $regularProducts->reject(function ($item) use ($customProductIds, $regularProductIds) {
+            $productId = $item['product_id'] ?? null;
+            
+            if ($productId && in_array($productId, $customProductIds)) {
+                // Product exists in custom_products
+                // Only filter out if it does NOT exist in regular order_products
+                // (meaning it exists ONLY in custom product, not in regular order)
+                return !in_array($productId, $regularProductIds);
+            }
+            return false;
         })->values();
         
         // Merge custom products and regular products (no duplicates)
@@ -540,4 +580,3 @@ class WorkshopStoreManagerOrderResource extends JsonResource
         return true;
     }
 }
-

@@ -262,32 +262,39 @@ class OrderResource extends JsonResource
                             $connectedImageUrls[] = url(Storage::url($connectedProduct->image));
                         }
                         
-                        // Get quantity from order products - this is AGGREGATED quantity
-                        // IMPORTANT: This quantity includes both:
-                        // 1. Quantity from regular order (if product was added as regular product)
-                        // 2. Quantity from custom product (if product was added to custom product)
-                        // Example: If p2 was added as 15 in regular order and 5 in custom product, 
-                        //          this will show 20 (aggregated total: 15 + 5 = 20)
-                        // 
-                        // This aggregated quantity is managed by updateCustomProduct in OrderController
-                        // which adds/subtracts quantities correctly when custom products are updated
-                        $orderProduct = $order->products->firstWhere('id', $productId);
+                        // Get quantity from custom product's connected_products array
+                        // Custom product connected products are stored separately from regular order products
+                        // This allows regular products and custom product connected products to have separate quantities
+                        // Example: Regular p2 can have quantity 15, and custom product's connected p2 can have quantity 5
                         $quantity = 0;
-                        if ($orderProduct && isset($orderProduct->pivot->quantity)) {
-                            // Always use aggregated quantity from order_products table
-                            // This is the FULL aggregated quantity (regular + custom)
-                            $quantity = (int) $orderProduct->pivot->quantity;
-                        } else {
-                            // Fallback: Try to get from product_details if not in order_products yet
-                            // This happens for new custom products that haven't been synced yet
-                            // But note: once synced, order_products will have the aggregated quantity
-                            $quantity = (int) ($productDetails['quantity'] ?? 0);
-                            
-                            // If still 0, try to get from custom product's product_details directly
-                            if ($quantity == 0) {
-                                // Check if this product has a specific quantity in the custom product's product_details
-                                // This is a fallback for edge cases
-                                $quantity = (int) ($productDetails['quantity'] ?? 0);
+                        $connectedProducts = $productDetails['connected_products'] ?? [];
+                        if (is_array($connectedProducts) && !empty($connectedProducts)) {
+                            // Find this product in connected_products array
+                            foreach ($connectedProducts as $connectedProduct) {
+                                if (isset($connectedProduct['product_id']) && (int) $connectedProduct['product_id'] === $productId) {
+                                    $quantity = (int) ($connectedProduct['quantity'] ?? 0);
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Fallback: If not found in connected_products, try legacy product_details quantity
+                        // This handles backward compatibility for custom products created before connected_products was added
+                        if ($quantity == 0) {
+                            // Check if this is a single product custom product (product_id matches)
+                            $productDetailsProductId = $productDetails['product_id'] ?? null;
+                            if ($productDetailsProductId) {
+                                if (is_array($productDetailsProductId)) {
+                                    // Multiple products - check if this product_id is in the array
+                                    if (in_array($productId, array_map('intval', $productDetailsProductId))) {
+                                        $quantity = (int) ($productDetails['quantity'] ?? 0);
+                                    }
+                                } else {
+                                    // Single product - check if product_id matches
+                                    if ((int) $productDetailsProductId === $productId) {
+                                        $quantity = (int) ($productDetails['quantity'] ?? 0);
+                                    }
+                                }
                             }
                         }
                         
@@ -709,34 +716,36 @@ class OrderResource extends JsonResource
             ]);
         }
         
-        // Get all product IDs from root custom_products to filter duplicates
-        // These are products that are connected to ANY custom product
-        // Example: If p2 is connected to a custom product, p2 will be in this list
+        // Get all product IDs from root custom_products (connected products from custom products)
         $customProductIds = $rootCustomProducts->pluck('product_id')->filter()->unique()->toArray();
         
-        // Filter out products from regular products that exist in custom_products
+        // Get all product IDs from regular order_products (products added as regular products)
+        $regularProductIds = $order->products->pluck('id')->filter()->unique()->toArray();
+        
+        // Filter out products from regular products that exist ONLY in custom_products (not in regular order)
         // 
-        // IMPORTANT: If a product appears both in regular order AND in custom product,
-        // it should ONLY appear in the custom_products section with aggregated quantity.
+        // IMPORTANT: 
+        // - If a product exists in BOTH regular order AND custom product → show in BOTH places
+        // - If a product exists ONLY in custom product (not in regular order) → show ONLY under custom product
         // 
         // Example scenario:
-        // - Order create: regular p1=>10, p2=>15, custom product added
-        // - Order edit: custom product edit add p2=>5
+        // - Order create: regular p1=>10, p2=>15
+        // - Custom product created: connected to p2 (qty: 5) and p3 (qty: 8)
         // - Result:
         //   * p1 (quantity: 10) appears in regular products (not in custom_products)
-        //   * p2 (quantity: 20 = 15+5) appears ONLY in custom_products section with aggregated quantity
-        //   * p2 does NOT appear in regular products (filtered out)
-        // 
-        // The aggregated quantity is stored in order_products table and includes both:
-        // - Quantity from regular order (if product was added as regular product)
-        // - Quantity from custom product (if product was added to custom product)
-        $products = $products->reject(function ($item) use ($customProductIds) {
+        //   * p2 (quantity: 15) appears in regular products AND p2 (quantity: 5) appears in custom_products
+        //   * p3 (quantity: 8) appears ONLY in custom_products (not in regular products - filtered out)
+        $products = $products->reject(function ($item) use ($customProductIds, $regularProductIds) {
             // Only filter regular products (is_custom = 0), not custom products themselves
             if (isset($item['is_custom']) && $item['is_custom'] == 0) {
-                // Filter out if this product_id exists in custom_products connected products
-                // The aggregated quantity will be shown in the custom_products section
-                // This ensures p2 shows quantity 20 (15+5) in custom_products, not in regular products
-                return isset($item['product_id']) && in_array($item['product_id'], $customProductIds);
+                $productId = $item['product_id'] ?? null;
+                
+                if ($productId && in_array($productId, $customProductIds)) {
+                    // Product exists in custom_products
+                    // Only filter out if it does NOT exist in regular order_products
+                    // (meaning it exists ONLY in custom product, not in regular order)
+                    return !in_array($productId, $regularProductIds);
+                }
             }
             return false;
         })->values();

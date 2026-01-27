@@ -73,8 +73,8 @@ class OrderResource extends JsonResource
                 $imageUrls[] = url(Storage::url($product->image));
             }
             
-            // Use order store instead of product store column
-            $orderStore = $this->store ? StoreEnum::tryFrom($this->store) : StoreEnum::WarehouseStore;
+            // Use product store type (store column removed from orders table)
+            $productStore = $product->store ?? StoreEnum::WarehouseStore;
             
             // Get quantity from pivot
             $quantity = (int) ($product->pivot->quantity ?? 0);
@@ -138,7 +138,7 @@ class OrderResource extends JsonResource
                 'quantity' => $quantity,
                     'unit_type' => $product->unit_type,
                     'category' => $product->category->name ?? null,
-                    'type_name' => $orderStore?->getName() ?? 'Workshop Store',
+                    'type_name' => ($productStore instanceof StoreEnum ? $productStore->getName() : StoreEnum::WarehouseStore->getName()),
                     // Use main order status instead of deprecated delivery_status column
                     'product_status' => $orderStatus,
                     'is_custom' => 0,
@@ -216,12 +216,38 @@ class OrderResource extends JsonResource
                             $connectedImageUrls[] = url(Storage::url($product->image));
                         }
 
-                        // Get quantity from order products relationship
-                        $orderProduct = $this->products->firstWhere('id', $productId);
-                        $quantity = $orderProduct ? (int) ($orderProduct->pivot->quantity ?? 0) : ($getproductRes->quantity ?? 0);
+                        // Get quantity from custom product's connected_products array
+                        // Custom product connected products are stored separately from regular order products
+                        $quantity = 0;
+                        $connectedProducts = $productDetails['connected_products'] ?? [];
+                        if (is_array($connectedProducts) && !empty($connectedProducts)) {
+                            // Find this product in connected_products array
+                            foreach ($connectedProducts as $connectedProduct) {
+                                if (isset($connectedProduct['product_id']) && (int) $connectedProduct['product_id'] === $productId) {
+                                    $quantity = (int) ($connectedProduct['quantity'] ?? 0);
+                                    break;
+                                }
+                            }
+                        }
                         
-                        // Use order store instead of product store column
-                        $orderStore = $this->store ? StoreEnum::tryFrom($this->store) : StoreEnum::WarehouseStore;
+                        // Fallback: If not found in connected_products, try legacy product_details quantity
+                        if ($quantity == 0) {
+                            $productDetailsProductId = $productDetails['product_id'] ?? null;
+                            if ($productDetailsProductId) {
+                                if (is_array($productDetailsProductId)) {
+                                    if (in_array($productId, array_map('intval', $productDetailsProductId))) {
+                                        $quantity = (int) ($productDetails['quantity'] ?? 0);
+                                    }
+                                } else {
+                                    if ((int) $productDetailsProductId === $productId) {
+                                        $quantity = (int) ($productDetails['quantity'] ?? 0);
+                                    }
+                                }
+                            }
+                        }
+                        
+                        // Use product store type (store column removed from orders table)
+                        $productStore = $getproductRes->store ?? StoreEnum::WarehouseStore;
 
                         // Get materials connected to this product
                         $productMaterials = collect();
@@ -278,7 +304,7 @@ class OrderResource extends JsonResource
                         $connectedProductData = [
                             'product_id' => $getproductRes->id,
                             'product_name' => $getproductRes->product_name,
-                            'type_name' => $orderStore?->getName() ?? 'Workshop Store',
+                            'type_name' => ($productStore instanceof StoreEnum ? $productStore->getName() : StoreEnum::WarehouseStore->getName()),
                             // Use main order status instead of deprecated delivery_status column
                             'product_status' => $orderStatus,
                             'quantity' => $quantity,
@@ -351,7 +377,7 @@ class OrderResource extends JsonResource
             $orderStatus = $this->status?->value ?? $this->status ?? 'pending';
 
             if ($isWarehouseStoreManager) {
-                // Warehouse format: custom products at root with regular products nested
+                // Workshop format: custom products at root with regular products nested
                 $customProducts->push([
                     'product_id' => $customProduct->id ?? null,
                     'custom_product_id' => $customProduct->id ?? null,
@@ -371,8 +397,8 @@ class OrderResource extends JsonResource
                 ]);
             } else {
                 // Hardware format: custom products in standard format (will be merged with regular products)
-                // Use order store instead of product store column
-                $orderStore = $this->store ? StoreEnum::tryFrom($this->store) : StoreEnum::WarehouseStore;
+                // Use product store type if available, otherwise default to workshop
+                $productStore = $product?->store ?? $displayProduct?->store ?? StoreEnum::WarehouseStore;
                 
                 $customProducts->push([
                     'product_id' => $customProduct->id ?? null,
@@ -382,7 +408,7 @@ class OrderResource extends JsonResource
                     'unit_type' => $customProduct->unit?->name ?? null,
                     'unit_id' => $productDetails['unit_id'] ?? null,
                     'category' => $displayProduct?->category->name ?? $product?->category->name ?? null,
-                    'type_name' => $orderStore?->getName() ?? 'Workshop Store',
+                    'type_name' => ($productStore instanceof StoreEnum ? $productStore->getName() : StoreEnum::WarehouseStore->getName()),
                     // Use main order status instead of deprecated delivery_status column
                     'product_status' => $orderStatus,
                     'is_custom' => 1,
@@ -397,7 +423,7 @@ class OrderResource extends JsonResource
         // Even if they reference the same product_id, show both entries
         // Determine products array based on store manager type
         if ($isWarehouseStoreManager) {
-            // Warehouse: Custom products (is_custom = 1) at root, regular products nested in custom_products
+            // Workshop: Custom products (is_custom = 1) at root, regular products nested in custom_products
             // But also include regular products separately if they exist
             $productsArray = $customProducts->merge($regularProducts)->values()->unique(function ($item) {
                 return ($item['product_id'] ?? $item['custom_product_id'] ?? '') . '_' . ($item['is_custom'] ?? 0);
@@ -416,7 +442,7 @@ class OrderResource extends JsonResource
             'site_name' => $this->site->name ?? null,
             'site_manager_id' => $this->site_manager_id ?? null,
             'store_manager_role' => $this->store_manager_role ?? null,
-            'store' => $this->store ?? null,
+            // Store column removed - store type determined from products
             'store_manager_id' => $this->storeManager()?->id ?? null, // For backward compatibility
             'site_location' => $this->site->location ?? null,
             'status' => $this->status?->value ?? 'pending',
