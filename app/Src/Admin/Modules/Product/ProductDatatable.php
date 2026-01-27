@@ -245,11 +245,11 @@ class ProductDatatable extends Component
         $qty = (int) ($product->total_stock_quantity ?? $product->available_qty ?? 0);
         $threshold = (int) ($product->low_stock_threshold ?? 0);
 
-        if ($threshold > 0 && $qty <= $threshold) {
-            return '<span class="badge badge-light-danger">Low</span>';
-        }
+        $isLow = $threshold > 0 && $qty <= $threshold;
+        $badgeClass = $isLow ? 'badge-light-danger' : 'badge-light-success';
+        $label = $isLow ? 'Low' : 'OK';
 
-        return '<span class="badge badge-light-success">OK</span>';
+        return '<span class="badge ' . $badgeClass . '">' . $label . ' (' . $qty . ')</span>';
     }
 
     public function getProductsProperty()

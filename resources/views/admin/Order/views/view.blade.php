@@ -113,13 +113,6 @@
                             <span class="text-gray-500 fs-6">Not assigned</span>
                         </div>
                     @endif
-                    @if($order->sale_date)
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Sale Date</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="text-gray-800 fw-bold fs-6">{{ $order->sale_date->format('d-m-Y') }}</span>
-                    </div>
-                    @endif
                     @if($order->priority)
                     <div class="mb-2" style="line-height: 1.8;">
                         <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Priority</span>

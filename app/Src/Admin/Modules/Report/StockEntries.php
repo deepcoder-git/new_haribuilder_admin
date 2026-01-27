@@ -64,7 +64,8 @@ class StockEntries extends Component
     public function getStocksProperty()
     {
         $query = Stock::query()
-            ->with(['product.category', 'site'])
+            // Eager-load related models to avoid lazy loading (reference is morphTo)
+            ->with(['product.category', 'site', 'reference'])
             ->where('status', true)
             ->orderByDesc('created_at')
             ->orderByDesc('id');

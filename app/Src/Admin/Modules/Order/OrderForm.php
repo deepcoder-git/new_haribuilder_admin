@@ -610,10 +610,10 @@ class OrderForm extends Component
         $this->initializeProducts();
         $newIndex = count($this->orderProducts);
         $this->orderProducts[] = [
-            'product_id' => '', 
-            'quantity' => '1', // Initialize with default quantity of 1
-            'is_custom' => 1, 
-            'custom_note' => '', 
+            'product_id' => '',
+            'quantity' => '', // Do not set a default quantity; let the user input it
+            'is_custom' => 1,
+            'custom_note' => '',
             'custom_images' => [],
             'product_type' => 'warehouse', // Custom products belong to warehouse
         ];
@@ -1819,10 +1819,9 @@ class OrderForm extends Component
 
     /**
      * Validate products and quantity manually to ensure errors are properly registered
-     * Product ID is required for non-custom products
-     * Quantity is ALWAYS required for ALL products in both create and edit modes
-     * Custom products must have either custom_note or custom_images
-     * This is a backup validation in case the main validation doesn't catch empty values
+     * Product ID and quantity are required for non-custom products.
+     * Custom products must have either custom_note or custom_images (no quantity required).
+     * This is a backup validation in case the main validation doesn't catch empty values.
      */
     protected function validateProductsAndQuantity(): void
     {
@@ -1831,11 +1830,16 @@ class OrderForm extends Component
         foreach ($this->orderProducts as $index => $product) {
             $isCustom = $this->normalizeBoolean($product['is_custom'] ?? false);
             
-            // For non-custom products, product_id is required
+            // For non-custom products, product_id and quantity are required
             if (!$isCustom) {
                 $productId = $product['product_id'] ?? '';
                 if (empty($productId) || $productId === '' || $productId === '0' || $productId === 0) {
                     $this->addError("orderProducts.{$index}.product_id", 'Please select a product.');
+                }
+                
+                $quantity = $product['quantity'] ?? '';
+                if (empty($quantity) || $quantity === '' || $quantity === '0' || $quantity === 0) {
+                    $this->addError("orderProducts.{$index}.quantity", 'Quantity is required.');
                 }
             } else {
                 // For custom products, validate that they have either custom_note or custom_images
@@ -1844,12 +1848,6 @@ class OrderForm extends Component
                 if (empty($customNote) && empty($customImages)) {
                     $this->addError("orderProducts.{$index}.custom_note", 'Either custom note or custom images are required for custom products.');
                 }
-            }
-            
-            // Always validate quantity for all products (create and edit)
-            $quantity = $product['quantity'] ?? '';
-            if (empty($quantity) || $quantity === '' || $quantity === '0' || $quantity === 0) {
-                $this->addError("orderProducts.{$index}.quantity", 'Quantity is required.');
             }
         }
     }
@@ -2735,8 +2733,12 @@ class OrderForm extends Component
         $this->site_manager_id = $model->site_manager_id ? (string)$model->site_manager_id : null;
         $this->transport_manager_id = $model->transport_manager_id ? (string)$model->transport_manager_id : null;
         $this->site_id = $model->site_id ? (string)$model->site_id : null;
-        // Store the order's store for filtering products in edit mode
-        $this->order_store = $model->store ? (string)$model->store : null;
+        // Determine order_store from attached products (orders table no longer has a store column)
+        // Prefer first product's store enum when available
+        $firstProduct = $model->products->first();
+        $this->order_store = $firstProduct && $firstProduct->store
+            ? (string) ($firstProduct->store instanceof \App\Utility\Enums\StoreEnum ? $firstProduct->store->value : $firstProduct->store)
+            : null;
         $this->previous_status = $displayStatus;
         $this->original_status = $displayStatus;
         // Load drop_location from order, or fall back to site's location
@@ -2865,7 +2867,7 @@ class OrderForm extends Component
             $currentIndex = count($this->orderProducts);
             $this->orderProducts[] = [
                 'product_id' => '',
-                'quantity' => '1', // Default quantity for custom products
+                'quantity' => '', // Do not set a default quantity for custom products
                 'is_custom' => 1,
                 'custom_note' => $customProduct->custom_note ?? '',
                 'custom_images' => $customImages,
@@ -3844,13 +3846,20 @@ class OrderForm extends Component
             }
         }
 
+        // When checking materials, include BOTH general stock and site-specific stock,
+        // same as the actual deduction logic in deductStockForOrder().
+        $siteId = $order->site_id ? (int) $order->site_id : null;
+
         foreach ($requiredMaterials as $materialId => $requiredQty) {
             $requiredQtyInt = (int) ceil($requiredQty);
             if ($requiredQtyInt <= 0) {
                 continue;
             }
 
-            $available = $this->stockService->getCurrentMaterialStock((int) $materialId, null);
+            $generalStock = $this->stockService->getCurrentMaterialStock((int) $materialId, null);
+            $siteStock = $siteId ? $this->stockService->getCurrentMaterialStock((int) $materialId, $siteId) : 0;
+            $available = $generalStock + $siteStock;
+
             if ($available < $requiredQtyInt) {
                 $materialModel = Product::find((int) $materialId);
                 $materialName = $materialModel?->product_name ?? $materialModel?->material_name ?? "Material ID {$materialId}";
@@ -5674,11 +5683,6 @@ class OrderForm extends Component
                     return;
                 }
             } else {
-                // No custom_product_id - this might be a new custom product that hasn't been saved yet
-                // We need to ensure product_ids are preserved in orderProducts array
-                // They will be saved when the main form is saved
-                
-                // Double-check that product_ids are in the orderProducts array
                 if (!isset($this->orderProducts[$this->editingCustomProductIndex]['product_ids']) || 
                     empty($this->orderProducts[$this->editingCustomProductIndex]['product_ids'])) {
                     // Ensure product_ids are set
@@ -5757,7 +5761,53 @@ class OrderForm extends Component
         $connectedProducts = [];
         
         try {
+            // Load products for connected workshop items
             $products = Product::with('category')->whereIn('id', $productIds)->get()->keyBy('id');
+
+            // Try to load custom product details (materials + total quantity) for this row
+            $customProductId = $this->orderProducts[$index]['custom_product_id'] ?? null;
+            $materialsSummary = null;
+            $totalQuantity = null;
+
+            if ($customProductId) {
+                $customProduct = OrderCustomProduct::find($customProductId);
+                if ($customProduct && is_array($customProduct->product_details)) {
+                    $productDetails = $customProduct->product_details;
+                    $totalQuantity = $productDetails['quantity'] ?? null;
+
+                    $materials = $productDetails['materials'] ?? [];
+                    if (!empty($materials) && is_array($materials)) {
+                        $materialIds = array_values(array_unique(array_filter(array_column($materials, 'material_id'))));
+                        $materialNames = [];
+
+                        if (!empty($materialIds)) {
+                            $materialsModels = Product::whereIn('id', $materialIds)->pluck('product_name', 'id');
+                        } else {
+                            $materialsModels = collect();
+                        }
+
+                        foreach ($materials as $material) {
+                            $materialId = $material['material_id'] ?? null;
+                            if (!$materialId) {
+                                continue;
+                            }
+
+                            $name = $materialsModels[$materialId] ?? 'Material';
+                            $calQty = $material['calculated_quantity'] ?? $material['cal_qty'] ?? null;
+
+                            if ($calQty !== null) {
+                                $materialNames[] = $name . ' (' . (float) $calQty . ')';
+                            } else {
+                                $materialNames[] = $name;
+                            }
+                        }
+
+                        if (!empty($materialNames)) {
+                            $materialsSummary = implode(', ', $materialNames);
+                        }
+                    }
+                }
+            }
             
             // Maintain order from product_ids array
             foreach ($productIds as $productId) {
@@ -5769,6 +5819,8 @@ class OrderForm extends Component
                         'category' => $product->category->name ?? 'N/A',
                         'unit' => $product->unit_type ?? 'N/A',
                         'image_url' => $product->first_image_url ?? null,
+                        'quantity' => $totalQuantity,
+                        'materials_summary' => $materialsSummary,
                     ];
                 }
             }

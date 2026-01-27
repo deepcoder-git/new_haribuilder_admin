@@ -274,11 +274,11 @@ class MaterialDatatable extends Component
         $qty = (int) ($material->total_stock_quantity ?? $material->available_qty ?? 0);
         $threshold = (int) ($material->low_stock_threshold ?? 0);
 
-        if ($threshold > 0 && $qty <= $threshold) {
-            return '<span class="badge badge-light-danger">Low</span>';
-        }
+        $isLow = $threshold > 0 && $qty <= $threshold;
+        $badgeClass = $isLow ? 'badge-light-danger' : 'badge-light-success';
+        $label = $isLow ? 'Low' : 'OK';
 
-        return '<span class="badge badge-light-success">OK</span>';
+        return '<span class="badge ' . $badgeClass . '">' . $label . ' (' . $qty . ')</span>';
     }
 
     public function openImportModal(): void

@@ -750,6 +750,8 @@
                                                                                                 <th style="padding: 0.5rem; font-size: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Product</th>
                                                                                                 <th style="padding: 0.5rem; font-size: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Category</th>
                                                                                                 <th style="padding: 0.5rem; font-size: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Unit</th>
+                                                                                                <th style="padding: 0.5rem; font-size: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb; width: 90px;">Qty</th>
+                                                                                                <th style="padding: 0.5rem; font-size: 0.75rem; font-weight: 600; border-bottom: 2px solid #e5e7eb;">Materials</th>
                                                                                             </tr>
                                                                                         </thead>
                                                                                         <tbody>
@@ -778,6 +780,23 @@
                                                                                                     </td>
                                                                                                     <td style="padding: 0.5rem; font-size: 0.8125rem; color: #6b7280; vertical-align: middle;">
                                                                                                         {{ $connectedProduct['unit'] }}
+                                                                                                    </td>
+                                                                                                    <td style="padding: 0.5rem; font-size: 0.8125rem; color: #111827; vertical-align: middle; text-align: center;">
+                                                                                                        @php
+                                                                                                            $qty = $connectedProduct['quantity'] ?? null;
+                                                                                                        @endphp
+                                                                                                        <span style="font-weight: 600;">
+                                                                                                            {{ $qty !== null ? number_format((float) $qty, 2) : '—' }}
+                                                                                                        </span>
+                                                                                                    </td>
+                                                                                                    <td style="padding: 0.5rem; font-size: 0.75rem; color: #4b5563; vertical-align: middle;">
+                                                                                                        @if(!empty($connectedProduct['materials_summary']))
+                                                                                                            <span title="{{ $connectedProduct['materials_summary'] }}">
+                                                                                                                {{ \Illuminate\Support\Str::limit($connectedProduct['materials_summary'], 80) }}
+                                                                                                            </span>
+                                                                                                        @else
+                                                                                                            <span class="text-muted">—</span>
+                                                                                                        @endif
                                                                                                     </td>
                                                                                                 </tr>
                                                                                             @endforeach
@@ -1241,17 +1260,21 @@
                                                         @endif
                                                     </td>
                                                     <td style="padding: 1rem 0.75rem;">
-                                                        <div class="d-flex align-items-center justify-content-center gap-1">
-                                                            <button type="button" wire:click="decrementQuantity({{ $index }})" class="btn btn-sm btn-light" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;"><i class="fa-solid fa-minus" style="font-size: 0.75rem;"></i></button>
-                                                            @php
-                                                                $hasQuantityError = $errors->has('orderProducts.' . $index . '.quantity');
-                                                                // Remove red border highlighting for custom products
-                                                                $borderColor = ($isCustom) ? '#e5e7eb' : ($hasQuantityError ? '#ef4444' : '#e5e7eb');
-                                                            @endphp
-                                                            <input type="number" wire:model.live="orderProducts.{{ $index }}.quantity" step="1" min="1" class="form-control form-control-solid @if(!$isCustom) @error('orderProducts.' . $index . '.quantity') is-invalid @enderror @endif" style="width: 80px; height: 32px; text-align: center; padding: 0.25rem; border: 1px solid {{ $borderColor }};">
-                                                            <button type="button" wire:click="incrementQuantity({{ $index }})" class="btn btn-sm btn-light" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;"><i class="fa-solid fa-plus" style="font-size: 0.75rem;"></i></button>
-                                                        </div>
-                                                        @if(!$isCustom)
+                                                        @if($isCustom)
+                                                            {{-- Custom product row does not use quantity --}}
+                                                            <div class="text-center text-gray-400" style="font-size: 0.75rem;">
+                                                                —
+                                                            </div>
+                                                        @else
+                                                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                                                <button type="button" wire:click="decrementQuantity({{ $index }})" class="btn btn-sm btn-light" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;"><i class="fa-solid fa-minus" style="font-size: 0.75rem;"></i></button>
+                                                                @php
+                                                                    $hasQuantityError = $errors->has('orderProducts.' . $index . '.quantity');
+                                                                    $borderColor = $hasQuantityError ? '#ef4444' : '#e5e7eb';
+                                                                @endphp
+                                                                <input type="number" wire:model.live="orderProducts.{{ $index }}.quantity" step="1" min="1" class="form-control form-control-solid @error('orderProducts.' . $index . '.quantity') is-invalid @enderror" style="width: 80px; height: 32px; text-align: center; padding: 0.25rem; border: 1px solid {{ $borderColor }};">
+                                                                <button type="button" wire:click="incrementQuantity({{ $index }})" class="btn btn-sm btn-light" style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;"><i class="fa-solid fa-plus" style="font-size: 0.75rem;"></i></button>
+                                                            </div>
                                                             @error('orderProducts.' . $index . '.quantity')
                                                                 <div class="text-danger small mt-1" style="font-size: 0.8125rem; line-height: 1.4; color: #ef4444; font-weight: 500; text-align: center;">{{ $message }}</div>
                                                             @enderror
@@ -1724,32 +1747,36 @@
                                         @endif
                                     </td>
                                     <td style="padding: 1rem 0.75rem;">
-                                        <div class="d-flex align-items-center justify-content-center gap-1">
-                                            <button type="button" 
-                                                    wire:click="decrementQuantity({{ $index }})"
-                                                    class="btn btn-sm btn-light"
-                                                    style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;">
-                                                <i class="fa-solid fa-minus" style="font-size: 0.75rem;"></i>
-                                            </button>
-                                            @php
-                                                $hasQuantityError = $errors->has('orderProducts.' . $index . '.quantity');
-                                                // Remove red border highlighting for custom products
-                                                $borderColor = ($isCustom) ? '#e5e7eb' : ($hasQuantityError ? '#ef4444' : '#e5e7eb');
-                                            @endphp
-                                            <input type="number" 
-                                                   wire:model.live="orderProducts.{{ $index }}.quantity"
-                                                   step="1"
-                                                   min="1"
-                                                   class="form-control form-control-solid @if(!$isCustom) @error('orderProducts.' . $index . '.quantity') is-invalid @enderror @endif"
-                                                   style="width: 80px; height: 32px; text-align: center; padding: 0.25rem; border: 1px solid {{ $borderColor }};">
-                                            <button type="button" 
-                                                    wire:click="incrementQuantity({{ $index }})"
-                                                    class="btn btn-sm btn-light"
-                                                    style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;">
-                                                <i class="fa-solid fa-plus" style="font-size: 0.75rem;"></i>
-                                            </button>
-                                        </div>
-                                        @if(!$isCustom)
+                                        @if($isCustom)
+                                            {{-- Custom product row does not use quantity --}}
+                                            <div class="text-center text-gray-400" style="font-size: 0.75rem;">
+                                                —
+                                            </div>
+                                        @else
+                                            <div class="d-flex align-items-center justify-content-center gap-1">
+                                                <button type="button" 
+                                                        wire:click="decrementQuantity({{ $index }})"
+                                                        class="btn btn-sm btn-light"
+                                                        style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;">
+                                                    <i class="fa-solid fa-minus" style="font-size: 0.75rem;"></i>
+                                                </button>
+                                                @php
+                                                    $hasQuantityError = $errors->has('orderProducts.' . $index . '.quantity');
+                                                    $borderColor = $hasQuantityError ? '#ef4444' : '#e5e7eb';
+                                                @endphp
+                                                <input type="number" 
+                                                       wire:model.live="orderProducts.{{ $index }}.quantity"
+                                                       step="1"
+                                                       min="1"
+                                                       class="form-control form-control-solid @error('orderProducts.' . $index . '.quantity') is-invalid @enderror"
+                                                       style="width: 80px; height: 32px; text-align: center; padding: 0.25rem; border: 1px solid {{ $borderColor }};">
+                                                <button type="button" 
+                                                        wire:click="incrementQuantity({{ $index }})"
+                                                        class="btn btn-sm btn-light"
+                                                        style="width: 32px; height: 32px; padding: 0; display: flex; align-items: center; justify-content: center; border: 1px solid #e5e7eb;">
+                                                    <i class="fa-solid fa-plus" style="font-size: 0.75rem;"></i>
+                                                </button>
+                                            </div>
                                             @error('orderProducts.' . $index . '.quantity')
                                                 <div class="text-danger small mt-1" style="font-size: 0.8125rem; line-height: 1.4; color: #ef4444; font-weight: 500; text-align: center;">{{ $message }}</div>
                                             @enderror

@@ -8,7 +8,7 @@
                         <input type="text"
                                wire:model.live.debounce.300ms="search"
                                class="form-control form-control-solid"
-                               placeholder="Search by product or category..."
+                               placeholder="Search by material or category..."
                                style="border-radius: 0.5rem; height: 44px; padding-left: 3rem;">
                     </div>
                 </div>
@@ -20,13 +20,12 @@
                 <table class="table align-middle table-row-dashed mb-0" style="font-size: 0.9375rem;">
                     <thead>
                         <tr class="fw-bold text-uppercase" style="border-bottom: 2px solid #1e3a8a; background: #ffffff;">
-                            <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">PRODUCT</th>
+                            <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">MATERIAL</th>
                             <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">DATE</th>
                             <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">CATEGORY</th>
                             <th class="text-start" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">UNIT</th>
                             <th class="text-center" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">QUANTITY</th>
-                            <th class="text-center" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">THRESHOLD</th>
-                            <th class="text-center" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">LOW STOCK</th>
+                            <th class="text-center" style="padding: 0.5rem; color: #1e3a8a; font-size: 0.8125rem;">ACTION</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -54,29 +53,24 @@
                                     </span>
                                 </td>
                                 <td class="text-center" style="padding: 0.375rem 0.5rem;">
-                                    <div class="d-flex align-items-center justify-content-center gap-2">
-                                        <span class="text-gray-800 fw-semibold">
-                                            {{ formatQty($totalStock) }}
-                                        </span>
-                                        <a href="{{ route('admin.stock.entries', ['product_id' => $product->id]) }}" 
-                                           class="btn btn-sm btn-light-primary" 
-                                           title="View Stock Entries">
-                                            <i class="fa-solid fa-history"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                                <td class="text-center" style="padding: 0.375rem 0.5rem;">
-                                    <span class="text-gray-700">
-                                        {{ $product->low_stock_threshold !== null ? formatQty($product->low_stock_threshold) : 'N/A' }}
+                                    <span class="text-gray-800 fw-semibold">
+                                        {{ formatQty($totalStock) }}
                                     </span>
                                 </td>
                                 <td class="text-center" style="padding: 0.375rem 0.5rem;">
-                                    {!! $this->renderLowStock($product) !!}
+                                    <a href="{{ route('admin.stock.entries', ['product_id' => $product->id]) }}" 
+                                       class="btn btn-sm btn-light-primary" 
+                                       title="View Quantity History"
+                                       target="_blank"
+                                       rel="noopener">
+                                        <i class="fa-solid fa-history me-1"></i>
+                                        Qty History
+                                    </a>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="text-center py-10">
+                                <td colspan="6" class="text-center py-10">
                                     <div class="d-flex flex-column align-items-center">
                                         <div class="symbol symbol-circle symbol-80px mb-4">
                                             <div class="symbol-label bg-light">

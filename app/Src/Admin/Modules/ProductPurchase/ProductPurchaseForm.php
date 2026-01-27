@@ -228,9 +228,9 @@ class ProductPurchaseForm extends Component
         $search = (string) ($this->productSearch[$index] ?? '');
         $page = (int) ($this->productPage[$index] ?? 1);
 
+        // Purchase module: show all products/materials in dropdown (no store / type filter)
         $query = Product::query()
             ->with(['category', 'productImages'])
-            // Do not show LPO store products in dropdown
             ->where('store', '!=', StoreEnum::LPO)
             ->orderBy('product_name');
 

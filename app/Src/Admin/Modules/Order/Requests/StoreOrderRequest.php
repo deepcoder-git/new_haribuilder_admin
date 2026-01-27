@@ -41,10 +41,29 @@ class StoreOrderRequest
 
             'orderProducts' => ['required', 'array', 'min:1'],
             'orderProducts.*.is_custom' => ['nullable'],
-            'orderProducts.*.quantity' => ['required', 'numeric', 'min:1'],
 
-            // For non-custom rows, product_id is required.
-            // (The component also has additional manual validation for edge cases.)
+            // For non-custom rows, quantity is required and must be >= 1.
+            // Custom rows do not have quantity at order-level.
+            'orderProducts.*.quantity' => [
+                'nullable',
+                'numeric',
+                'min:1',
+                function ($attribute, $value, $fail) {
+                    // Extract row index from "orderProducts.N.quantity"
+                    if (!preg_match('/^orderProducts\.(\d+)\.quantity$/', $attribute, $matches)) {
+                        return;
+                    }
+                    $index = (int) $matches[1];
+                    $row = $this->orderProducts[$index] ?? [];
+                    $isCustom = (bool) ($row['is_custom'] ?? false);
+
+                    if (!$isCustom && ($value === null || $value === '' || (float) $value < 1)) {
+                        $fail('Quantity is required.');
+                    }
+                },
+            ],
+
+            // For non-custom rows, product_id is required (validated separately in component).
             'orderProducts.*.product_id' => ['nullable', 'integer', 'exists:products,id'],
 
             'orderProducts.*.custom_note' => ['nullable', 'string', 'max:255'],
