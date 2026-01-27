@@ -9,6 +9,7 @@ use App\Models\OrderCustomProduct;
 use App\Models\OrderCustomProductImage;
 use App\Models\Moderator;
 use App\Models\Product;
+use App\Models\Stock;
 use App\Models\Site;
 use App\Models\Supplier;
 use App\Notifications\OrderCreatedNotification;
@@ -3829,13 +3830,13 @@ class OrderForm extends Component
                 ? $this->stockService->getCurrentProductStock((int) $productId, null)
                 : $this->stockService->getCurrentMaterialStock((int) $productId, null);
 
-            // if ($available < $qty) {
-            //     $productName = $product->product_name ?? "Product ID {$productId}";
-            //     return [
-            //         'ok' => false,
-            //         'message' => "{$type}: Failed to deduct stock for {$productName}. Insufficient stock. Available: {$available}, Requested: {$qty}",
-            //     ];
-            // }
+            if ($available < $qty) {
+                $productName = $product->product_name ?? "Product ID {$productId}";
+                return [
+                    'ok' => false,
+                    'message' => "{$type}: Failed to deduct stock for {$productName}. Insufficient stock. Available: {$available}, Requested: {$qty}",
+                ];
+            }
 
             foreach ($product->materials as $material) {
                 $perUnit = (float) ($material->pivot->quantity ?? 0);
@@ -3860,14 +3861,14 @@ class OrderForm extends Component
             $siteStock = $siteId ? $this->stockService->getCurrentMaterialStock((int) $materialId, $siteId) : 0;
             $available = $generalStock + $siteStock;
 
-            // if ($available < $requiredQtyInt) {
-            //     $materialModel = Product::find((int) $materialId);
-            //     $materialName = $materialModel?->product_name ?? $materialModel?->material_name ?? "Material ID {$materialId}";
-            //     return [
-            //         'ok' => false,
-            //         'message' => "{$type}: Failed to deduct stock for {$materialName}. Insufficient material stock. Available: {$available}, Requested: {$requiredQtyInt}",
-            //     ];
-            // }
+            if ($available < $requiredQtyInt) {
+                $materialModel = Product::find((int) $materialId);
+                $materialName = $materialModel?->product_name ?? $materialModel?->material_name ?? "Material ID {$materialId}";
+                return [
+                    'ok' => false,
+                    'message' => "{$type}: Failed to deduct stock for {$materialName}. Insufficient material stock. Available: {$available}, Requested: {$requiredQtyInt}",
+                ];
+            }
         }
 
         return ['ok' => true, 'message' => null];
@@ -4063,6 +4064,20 @@ class OrderForm extends Component
                         }
 
                         $materialTotalQty = $materialQtyPerUnit * $quantity;
+
+                        // Idempotency for material deductions:
+                        // If we've already created an 'out' stock entry for this order+material, skip to avoid double deduction.
+                        $materialAlreadyDeducted = Stock::where('product_id', (int) $material->id)
+                            ->where('status', true)
+                            ->where('adjustment_type', 'out')
+                            ->where('reference_id', $order->id)
+                            ->where('reference_type', Order::class)
+                            ->exists();
+
+                        if ($materialAlreadyDeducted) {
+                            Log::info("OrderForm::deductStockForOrder: Material stock already deducted for material {$material->id} ({$material->material_name}) in order {$order->id}, skipping duplicate deduction.");
+                            continue;
+                        }
 
                         $this->stockService->adjustMaterialStock(
                             (int)$material->id,
