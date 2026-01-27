@@ -29,6 +29,7 @@ use App\Models\Moderator;
 use App\Utility\Enums\RoleEnum;
 use App\Utility\Enums\OrderStatusEnum;
 use App\Utility\Enums\StoreEnum;
+use App\Services\OrderWorkflowService;
 use App\Utility\Enums\StatusEnum;
 use App\Notifications\OrderCreatedNotification;
 use App\Notifications\OrderRejectedNotification;
@@ -3617,7 +3618,10 @@ class OrderController extends Controller
             $customProductsData = [];
             $supplierMapping = [];
 
-            foreach ($formData['products'] as $index => $product) {
+            $rawProducts = $formData['products'] ?? [];
+
+            // First handle custom products (API-specific handling for custom items)
+            foreach ($rawProducts as $index => $product) {
                 $isCustom = filter_var($product['is_custom'] ?? 0, FILTER_VALIDATE_BOOLEAN);
 
                 if ($isCustom) {
@@ -3625,23 +3629,13 @@ class OrderController extends Controller
                     if ($customProduct) {
                         $customProductsData[] = $customProduct;
                     }
-                } else {
-                    if (!empty($product['product_id']) && !empty($product['quantity'])) {
-                        $productId = (int) $product['product_id'];
-                        $productsData[$productId] = [
-                            'quantity' => (int) $product['quantity'],
-                        ];
-                        
-                        // Collect supplier_id for LPO products
-                        if (!empty($product['supplier_id'])) {
-                            $productModel = Product::find($productId);
-                            if ($productModel && $productModel->store === StoreEnum::LPO) {
-                                $supplierMapping[(string)$productId] = (int)$product['supplier_id'];
-                            }
-                        }
-                    }
                 }
             }
+
+            // Then extract regular products + LPO supplier mapping via shared workflow service
+            /** @var OrderWorkflowService $workflow */
+            $workflow = app(OrderWorkflowService::class);
+            [$productsData, $supplierMapping] = $workflow->extractRegularProductsAndSuppliers($rawProducts);
 
             if (empty($productsData) && empty($customProductsData)) {
                 return new ApiErrorResponse(
@@ -4857,6 +4851,19 @@ class OrderController extends Controller
                 $updateData['status'] = OrderStatusEnum::InTransit->value;
             } elseif ($request->action_type === 'outfordelivery') {
                 $updateData['status'] = OrderStatusEnum::OutOfDelivery->value;
+                
+                /**
+                 * BUSINESS RULE (mirror transport API):
+                 * - For warehouse/custom products, stock should be deducted when
+                 *   the order goes "out for delivery", not at approval time.
+                 * - Hardware products are already deducted on approval on the
+                 *   store management side.
+                 *
+                 * Delegate the warehouse stock deduction to the shared workflow service.
+                 */
+                /** @var OrderWorkflowService $workflow */
+                $workflow = app(OrderWorkflowService::class);
+                $workflow->deductWarehouseStockOnOutForDelivery($order, null);
             } elseif ($request->action_type === 'delivered') {
                 $updateData['status'] = OrderStatusEnum::Delivery->value;
             }

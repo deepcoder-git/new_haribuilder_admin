@@ -100,14 +100,12 @@ class OrderTestSeeder extends Seeder
             $hardwareOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(2),
                 'drop_location' => $site->address ?? 'Test Hardware Address',
                 'priority' => PriorityEnum::High->value,
                 'note' => 'Test hardware-only order',
                 'status' => OrderStatusEnum::Pending->value,
-                'store' => StoreEnum::HardwareStore->value,
-                'is_completed' => false,
+                // 'is_completed' => false,
             ]);
             DB::table('order_products')->insert([
                 'order_id' => $hardwareOrder->id,
@@ -115,6 +113,13 @@ class OrderTestSeeder extends Seeder
                 'quantity' => $hardwareQuantity,
                 'created_at' => $now,
                 'updated_at' => $now,
+            ]);
+            
+            // Product status for filter testing: hardware pending
+            $hardwareOrder->update([
+                'product_status' => [
+                    'hardware' => 'pending',
+                ],
             ]);
 
             // 2) Warehouse only order
@@ -130,14 +135,12 @@ class OrderTestSeeder extends Seeder
             $warehouseOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(3),
-                'drop_location' => $site->address ?? 'Test Warehouse Address',
+                // 'drop_location' => $site->address ?? 'Test Warehouse Address',
                 'priority' => PriorityEnum::Medium->value,
                 'note' => 'Test warehouse-only order',
                 'status' => OrderStatusEnum::Pending->value,
-                'store' => StoreEnum::WarehouseStore->value,
-                'is_completed' => false,
+                // 'is_completed' => false,
             ]);
             DB::table('order_products')->insert([
                 'order_id' => $warehouseOrder->id,
@@ -146,20 +149,24 @@ class OrderTestSeeder extends Seeder
                 'created_at' => $now,
                 'updated_at' => $now,
             ]);
+            // Product status for filter testing: workshop approved
+            $warehouseOrder->update([
+                'product_status' => [
+                    'workshop' => 'approved',
+                ],
+            ]);
 
             // 3) LPO only order
             $lpoOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(5),
-                'drop_location' => $site->address ?? 'Test LPO Address',
+                // 'drop_location' => $site->address ?? 'Test LPO Address',
                 'priority' => PriorityEnum::Low->value,
                 'note' => 'Test LPO-only order',
                 'status' => OrderStatusEnum::Pending->value,
-                'store' => StoreEnum::LPO->value,
                 'is_lpo' => true,
-                'is_completed' => false,
+                // 'is_completed' => false,
             ]);
             DB::table('order_products')->insert([
                 'order_id' => $lpoOrder->id,
@@ -167,6 +174,14 @@ class OrderTestSeeder extends Seeder
                 'quantity' => 3,
                 'created_at' => $now,
                 'updated_at' => $now,
+            ]);
+            // LPO product status: simple supplier-style entry for testing
+            $lpoOrder->update([
+                'product_status' => [
+                    'lpo' => [
+                        '1' => 'pending',
+                    ],
+                ],
             ]);
 
             // 4) Mixed hardware + warehouse
@@ -190,14 +205,12 @@ class OrderTestSeeder extends Seeder
             $mixedHWOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(4),
-                'drop_location' => $site->address ?? 'Test Mixed HW Address',
+                // 'drop_location' => $site->address ?? 'Test Mixed HW Address',
                 'priority' => PriorityEnum::High->value,
                 'note' => 'Test mixed hardware + warehouse order',
                 'status' => OrderStatusEnum::Pending->value,
-                'store' => StoreEnum::HardwareStore->value,
-                'is_completed' => false,
+                // 'is_completed' => false,
             ]);
             DB::table('order_products')->insert([
                 [
@@ -213,6 +226,13 @@ class OrderTestSeeder extends Seeder
                     'quantity' => $mixedHWQuantity2,
                     'created_at' => $now,
                     'updated_at' => $now,
+                ],
+            ]);
+            // Mixed hardware + workshop: hardware approved, workshop pending
+            $mixedHWOrder->update([
+                'product_status' => [
+                    'hardware' => 'approved',
+                    'workshop' => 'pending',
                 ],
             ]);
 
@@ -239,15 +259,13 @@ class OrderTestSeeder extends Seeder
             $mixedHWLpoOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(6),
-                'drop_location' => $site->address ?? 'Test Mixed HW+Warehouse+LPO Address',
+                // 'drop_location' => $site->address ?? 'Test Mixed HW+Warehouse+LPO Address',
                 'priority' => PriorityEnum::High->value,
                 'note' => 'Test mixed hardware + warehouse + LPO order',
                 'status' => OrderStatusEnum::Pending->value,
-                'store' => StoreEnum::HardwareStore->value,
                 'is_lpo' => true,
-                'is_completed' => false,
+                // 'is_completed' => false,
             ]);
             DB::table('order_products')->insert([
                 [
@@ -272,20 +290,31 @@ class OrderTestSeeder extends Seeder
                     'updated_at' => $now,
                 ],
             ]);
+            // Mixed hardware + workshop + LPO:
+            // - hardware out for delivery
+            // - workshop approved
+            // - LPO supplier approved
+            $mixedHWLpoOrder->update([
+                'product_status' => [
+                    'hardware' => 'outfordelivery',
+                    'workshop' => 'approved',
+                    'lpo' => [
+                        '1' => 'approved',
+                    ],
+                ],
+            ]);
 
             // 6) Order with a custom product (site-manager style) plus connected materials
             $customOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(7),
-                'drop_location' => $site->address ?? 'Test Custom Product Address',
+                // 'drop_location' => $site->address ?? 'Test Custom Product Address',
                 'priority' => PriorityEnum::High->value,
                 'note' => 'Test order with custom product and materials',
                 'status' => OrderStatusEnum::Pending->value,
-                'store' => StoreEnum::WarehouseStore->value,
                 'is_custom_product' => true,
-                'is_completed' => false,
+                // 'is_completed' => false,
             ]);
 
             // Attach at least one normal warehouse product so splitting logic has regular items
@@ -315,23 +344,27 @@ class OrderTestSeeder extends Seeder
                     'quantity' => 0,
                 ],
             ]);
+            // Custom + warehouse: workshop rejected, custom rejected
+            $customOrder->update([
+                'product_status' => [
+                    'workshop' => 'rejected',
+                    'custom' => 'rejected',
+                ],
+            ]);
 
             // 7) Single mixed order that has hardware + warehouse + LPO + a custom product
             $mixedFullOrder = Order::create([
                 'site_manager_id' => $siteManager?->id,
                 'site_id' => $site->id,
-                'sale_date' => $now,
                 'expected_delivery_date' => $now->copy()->addDays(8),
-                'drop_location' => $site->address ?? 'Test Mixed Full Address',
+                // 'drop_location' => $site->address ?? 'Test Mixed Full Address',
                 'priority' => PriorityEnum::High->value,
                 'note' => 'Test mixed order with hardware, warehouse, LPO and custom product',
                 'status' => OrderStatusEnum::Pending->value,
                 // From UI point of view, this order will appear in all three groups
                 // because items are split by product store type, not this field
-                'store' => StoreEnum::HardwareStore->value,
                 'is_lpo' => true,
                 'is_custom_product' => true,
-                'is_completed' => false,
             ]);
 
             // Attach one product from each store type
@@ -391,6 +424,17 @@ class OrderTestSeeder extends Seeder
                 'product_ids' => [$warehouseProduct->id],
             ]);
 
+
+            $mixedFullOrder->update([
+                'product_status' => [
+                    'hardware' => 'approved',
+                    'workshop' => 'outfordelivery',
+                    'lpo' => [
+                        '1' => 'delivered',
+                    ]
+                ],
+            ]);
+
             DB::commit();
 
             $this->command?->info('✅ Test orders seeded successfully.');
@@ -431,8 +475,7 @@ class OrderTestSeeder extends Seeder
                     null,
                     "Initial stock for OrderTestSeeder - ensuring minimum stock of {$minimumStock}",
                     null,
-                    "Initial Stock - OrderTestSeeder",
-                    ['seeder' => 'OrderTestSeeder']
+                    "Initial Stock - OrderTestSeeder"
                 );
                 $productName = $product->product_name ?? 'N/A';
                 $this->command?->info("  ✓ Created stock entry for product #{$product->id} ({$productName}) - Added {$neededStock} units");

@@ -12,6 +12,7 @@ use App\Src\Api\Modules\TransportManagement\Resources\TransportOrderResource;
 use App\Utility\Enums\RoleEnum;
 use App\Utility\Enums\StatusEnum;
 use App\Utility\Enums\OrderStatusEnum;
+use App\Services\OrderWorkflowService;
 use App\Utility\Response\ApiErrorResponse;
 use App\Utility\Response\ApiResponse;
 use App\Utility\Resource\PaginationResource;
@@ -465,6 +466,19 @@ class TransportManagerController extends Controller
             if($deliveryStatus === 'outfordelivery') {
                 // Main status: out for delivery
                 $updateData['status'] = OrderStatusEnum::OutOfDelivery->value;
+
+                /**
+                 * BUSINESS RULE:
+                 * - For warehouse/custom products, stock should be deducted when
+                 *   the order goes "out for delivery", not at approval time.
+                 * - Hardware products are already deducted on approval in
+                 *   StoreOrderController::handleApproval.
+                 *
+                 * Delegate the warehouse stock deduction to the shared workflow service.
+                 */
+                /** @var OrderWorkflowService $workflow */
+                $workflow = app(OrderWorkflowService::class);
+                $workflow->deductWarehouseStockOnOutForDelivery($order, null);
             }
             // Handle delivered status
             elseif ($deliveryStatus === 'delivered') {

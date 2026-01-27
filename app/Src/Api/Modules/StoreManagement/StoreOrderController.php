@@ -16,6 +16,7 @@ use App\Models\Order;
 use App\Models\Stock;
 use Illuminate\Support\Facades\Validator;
 use App\Services\StockService;
+use App\Services\OrderWorkflowService;
 use App\Models\Moderator;
 use App\Utility\Enums\RoleEnum;
 use Illuminate\Support\Facades\DB;
@@ -36,13 +37,16 @@ class StoreOrderController extends Controller
 {
 
     protected ?StockService $stockService = null;
+    protected OrderWorkflowService $orderWorkflowService;
     protected OrderCustomProductManager $customProductManager;
 
     public function __construct(
-        protected AuthService $authService
+        protected AuthService $authService,
+        OrderWorkflowService $orderWorkflowService
     ) {
         $this->stockService = app(StockService::class);
         $this->customProductManager = new OrderCustomProductManager();
+        $this->orderWorkflowService = $orderWorkflowService;
     }
 
     private function getOrderResourceClass($userRole): string
@@ -103,23 +107,43 @@ class StoreOrderController extends Controller
                         });
                     }
                 })
-                ->when($orderStatus && $orderStatus !== 'all', function (Builder $query) use ($orderStatus) {
+                ->when($orderStatus && $orderStatus !== 'all', function (Builder $query) use ($orderStatus, $userRole) {
+                    // Normalize incoming status string (for both order.status and product_status JSON)
                     $normalizedStatus = trim(strtolower((string) $orderStatus));
-                    if ($normalizedStatus === 'approve' || $normalizedStatus === 'approved') {
-                        $normalizedStatus = OrderStatusEnum::Approved->value;
-                    } elseif ($normalizedStatus === 'pending') {
-                        $normalizedStatus = OrderStatusEnum::Pending->value;
-                    } elseif ($normalizedStatus === 'rejected') {
-                        $normalizedStatus = OrderStatusEnum::Rejected->value;
-                    } elseif ($normalizedStatus === 'in_transit') {
-                        $normalizedStatus = OrderStatusEnum::InTransit->value;
-                    } elseif ($normalizedStatus === 'out_of_delivery' || $normalizedStatus === 'outofdelivery' || $normalizedStatus === 'outfordelivery') {
-                        $normalizedStatus = OrderStatusEnum::OutOfDelivery->value;
-                    } elseif ($normalizedStatus === 'delivery' || $normalizedStatus === 'delivered') {
-                        $normalizedStatus = OrderStatusEnum::Delivery->value;
-                    }
+                    $normalizedStatus = match ($normalizedStatus) {
+                        'approve', 'approved' => 'approved',
+                        'pending' => 'pending',
+                        'rejected' => 'rejected',
+                        'in_transit' => 'in_transit',
+                        'out_of_delivery', 'outofdelivery', 'outfordelivery' => 'outfordelivery',
+                        'delivery', 'delivered' => 'delivered',
+                        default => $normalizedStatus,
+                    };
 
-                    $query->where('status', $normalizedStatus);
+                    // For store manager roles, filter by their product_status key in JSON (hardware/workshop)
+                    if ($userRole === RoleEnum::StoreManager->value || $userRole === RoleEnum::WorkshopStoreManager->value) {
+                        $productStatusKey = $userRole === RoleEnum::StoreManager->value ? 'hardware' : 'workshop';
+
+                        // product_status is stored as JSON; use JSON path to filter by the role-specific key
+                        $query->where(function (Builder $q) use ($productStatusKey, $normalizedStatus) {
+                            $q->where("product_status->{$productStatusKey}", $normalizedStatus);
+                        });
+                    } else {
+                        // For other roles (if any hit this endpoint), fall back to main order status column
+                        $orderStatusValue = match ($normalizedStatus) {
+                            'approved' => OrderStatusEnum::Approved->value,
+                            'pending' => OrderStatusEnum::Pending->value,
+                            'rejected' => OrderStatusEnum::Rejected->value,
+                            'in_transit' => OrderStatusEnum::InTransit->value,
+                            'outfordelivery' => OrderStatusEnum::OutOfDelivery->value,
+                            'delivered' => OrderStatusEnum::Delivery->value,
+                            default => null,
+                        };
+
+                        if ($orderStatusValue !== null) {
+                            $query->where('status', $orderStatusValue);
+                        }
+                    }
                 })
                 // Filter out orders where products are not available
                 // Order must have at least one of: valid regular products OR custom products
@@ -568,10 +592,11 @@ class StoreOrderController extends Controller
                 ];
             }
 
-            // Deduct stock when order is approved
-            if (!empty($productsData)) {
-                $this->deductStockForOrder($order, $productsData, null);
-            }
+            // Deduct stock when order is approved (HARDWARE ONLY).
+            // BUSINESS RULE:
+            // - Hardware products: deduct on approval (store manager).
+            // - Warehouse/custom products: deducted later when order goes out for delivery.
+            $this->orderWorkflowService->deductHardwareStockOnApproval($order, null);
 
             // Determine which product_status type(s) to update based on logged-in user's role and actual products in order
             $productStatusTypesToUpdate = [];

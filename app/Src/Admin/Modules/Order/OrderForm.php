@@ -2205,22 +2205,35 @@ class OrderForm extends Component
                 $oldStatus = $currentProductStatus[$type] ?? 'pending';
             }
             
-            // If approving (and wasn't already approved), pre-check stock BEFORE persisting status.
-            if ($status === 'approved' && $oldStatus !== 'approved') {
-                $check = $this->canApproveProductType($order, $type);
-                if (!($check['ok'] ?? false)) {
-                    $msg = (string) ($check['message'] ?? "{$type}: Insufficient stock.");
-                    $this->setProductStatusError($type, $msg);
-                    $this->productStatuses[$type] = $oldStatus;
-                    $this->dispatch('revert-product-status-select', type: $type, status: $oldStatus);
-                    return;
-                }
-            }
+            /**
+             * STOCK CHECK & DEDUCTION RULES (per product type)
+             *
+             * - Hardware:
+             *   - Check + deduct stock when status changes to "approved".
+             * - Warehouse / Custom:
+             *   - Check + deduct stock when status changes to "outfordelivery".
+             *   - Approval alone should NOT deduct stock.
+             * - LPO:
+             *   - Handled separately; do not change here.
+             */
 
-            // IMPORTANT: Deduct stock BEFORE persisting the status to "approved".
-            // If deduction fails, we want the status to remain unchanged.
-            if ($status === 'approved' && $oldStatus !== 'approved') {
-                $this->deductStockForProductType($order, $type);
+            // HARDWARE: pre-check & deduct on "approved"
+            if ($type === 'hardware') {
+                // If approving (and wasn't already approved), pre-check stock BEFORE persisting status.
+                if ($status === 'approved' && $oldStatus !== 'approved') {
+                    $check = $this->canApproveProductType($order, $type);
+                    if (!($check['ok'] ?? false)) {
+                        $msg = (string) ($check['message'] ?? "{$type}: Insufficient stock.");
+                        $this->setProductStatusError($type, $msg);
+                        $this->productStatuses[$type] = $oldStatus;
+                        $this->dispatch('revert-product-status-select', type: $type, status: $oldStatus);
+                        return;
+                    }
+
+                    // IMPORTANT: Deduct stock BEFORE persisting the status to "approved".
+                    // If deduction fails, we want the status to remain unchanged.
+                    $this->deductStockForProductType($order, $type);
+                }
             }
 
             // Use Order model's updateProductStatus method (same as API) for consistency
@@ -2238,7 +2251,24 @@ class OrderForm extends Component
             }
             
             // If status is outfordelivery, save driver details for out for delivery
+            // and, for warehouse/custom, perform stock check & deduction here.
             if ($status === 'outfordelivery') {
+                // WAREHOUSE/CUSTOM: pre-check & deduct on "outfordelivery"
+                if (in_array($type, ['warehouse', 'custom'], true) && $oldStatus !== 'outfordelivery') {
+                    $check = $this->canApproveProductType($order, $type);
+                    if (!($check['ok'] ?? false)) {
+                        $msg = (string) ($check['message'] ?? "{$type}: Insufficient stock.");
+                        $this->setProductStatusError($type, $msg);
+                        $this->productStatuses[$type] = $oldStatus;
+                        $this->dispatch('revert-product-status-select', type: $type, status: $oldStatus);
+                        return;
+                    }
+
+                    // Deduct stock BEFORE persisting the status to "outfordelivery".
+                    // If deduction fails, we want the status to remain unchanged.
+                    $this->deductStockForProductType($order, $type);
+                }
+
                 // Initialize product type entry if it doesn't exist
                 if (!isset($currentDriverDetails[$type])) {
                     $currentDriverDetails[$type] = [];
@@ -2269,10 +2299,24 @@ class OrderForm extends Component
             // Refresh the order to get latest data
             $order->refresh();
             
-            // Restore stock when product status changes to 'rejected' from an approval/progressed state
-            // (so later re-approving can deduct again)
-            if ($status === 'rejected' && $oldStatus !== 'rejected' && in_array($oldStatus, ['approved', 'outfordelivery', 'in_transit', 'delivered'], true)) {
-                $this->restoreStockForProductType($order, $type);
+            // Restore stock when product status changes to 'rejected' from a state
+            // where stock had previously been deducted for that product type.
+            if ($status === 'rejected' && $oldStatus !== 'rejected') {
+                $hadStockDeducted = false;
+
+                // Hardware: stock is deducted when status becomes "approved"
+                if ($type === 'hardware' && in_array($oldStatus, ['approved', 'outfordelivery', 'in_transit', 'delivered'], true)) {
+                    $hadStockDeducted = true;
+                }
+
+                // Warehouse/Custom: stock is deducted when status becomes "outfordelivery"
+                if (in_array($type, ['warehouse', 'custom'], true) && in_array($oldStatus, ['outfordelivery', 'in_transit', 'delivered'], true)) {
+                    $hadStockDeducted = true;
+                }
+
+                if ($hadStockDeducted) {
+                    $this->restoreStockForProductType($order, $type);
+                }
             }
 
             // Stock deduction for approval happens BEFORE updating status (see above)
@@ -2902,7 +2946,9 @@ class OrderForm extends Component
                 $customProductsData = [];
                 $supplierMapping = []; // Initialize supplier mapping for LPO products
 
-                foreach ($this->orderProducts as $index => $product) {
+                $rawProducts = $this->orderProducts;
+
+                foreach ($rawProducts as $index => $product) {
                     $isCustom = $product['is_custom'] ?? 0;
                     
                     if ($isCustom) {
@@ -2983,23 +3029,18 @@ class OrderForm extends Component
                             $customProductsData[] = $customProductEntry;
                         }
                     } else {
-                        // All regular products (hardware, warehouse, LPO) - store in order_products pivot
-                        if (!empty($product['product_id']) && !empty($product['quantity'])) {
-                            $productsData[$product['product_id']] = [
-                                'quantity' => $product['quantity'],
-                            ];
-                            
-                            // Collect supplier_id for LPO products
-                            $productModel = Product::find($product['product_id']);
-                            if ($productModel && $productModel->store === StoreEnum::LPO && !empty($product['supplier_id'])) {
-                                if (!isset($supplierMapping)) {
-                                    $supplierMapping = [];
-                                }
-                                $supplierMapping[(string)$product['product_id']] = (int)$product['supplier_id'];
-                            }
-                        }
+                        // Regular products will be processed below via shared workflow service
                     }
                 }
+
+                // Use shared workflow service to extract regular products + LPO supplier mapping
+                /** @var \App\Services\OrderWorkflowService $workflow */
+                $workflow = app(\App\Services\OrderWorkflowService::class);
+                [$regularProductsData, $regularSupplierMapping] = $workflow->extractRegularProductsAndSuppliers($rawProducts);
+
+                // Merge into local structures (in case custom handling added other entries)
+                $productsData = array_replace($productsData, $regularProductsData);
+                $supplierMapping = array_replace($supplierMapping, $regularSupplierMapping);
 
                 if ($this->isEditMode && $this->editingId) {
                     $model = Order::with('products.productImages')->findOrFail($this->editingId);
