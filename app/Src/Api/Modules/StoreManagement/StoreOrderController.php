@@ -75,6 +75,12 @@ class StoreOrderController extends Controller
             $userRole = $role?->value ?? null;
             $userRole = trim((string) $userRole);
 
+            // NOTE:
+            // Do NOT globally filter by is_lpo here.
+            // An order can contain a mix of hardware / workshop / LPO products.
+            // Store managers (hardware & workshop) should still see orders that
+            // contain products for their store type, even if the order also
+            // has LPO items.
             $query = Order::with([
                     'site',
                     'products.category',
@@ -82,8 +88,6 @@ class StoreOrderController extends Controller
                     'products.materials',
                     'customProducts.images'
                 ])
-                ->where('is_lpo', 0)
-                // Restrict orders based on logged-in store manager role and product types
                 ->where(function (Builder $q) use ($userRole) {
                     // Also allow orders that have products for this store type
                     if ($userRole === RoleEnum::WorkshopStoreManager->value) {
@@ -182,20 +186,25 @@ class StoreOrderController extends Controller
             }
 
             $orderExists = Order::where('id', $orderId)->first();
-            
+
             Log::info('StoreOrderController::getOrderDetails', [
                 'order_id' => $orderId,
                 'user_id' => $user->id,
                 'user_role' => $userRole,
-                'order_exists' => $orderExists ? true : false,
-                'order_store_manager_role' => $orderExists?->store_manager_role,
+                'order_exists' => (bool) $orderExists,
+                // Removed store_manager_role to avoid accessing a missing attribute
                 'order_is_lpo' => $orderExists?->is_lpo,
                 'order_is_custom_product' => $orderExists?->is_custom_product,
             ]);
 
             // Build query to show order if it belongs to this store manager
-            // For Workshop store managers: show orders with warehouse products OR custom products OR store_manager_role = workshop_store_manager
-            // For hardware store managers: show orders with hardware products OR store_manager_role = store_manager
+            // IMPORTANT:
+            // - Do NOT filter by is_lpo here. Orders can contain a mix of
+            //   hardware / workshop / LPO items. Store managers should still
+            //   see orders that contain products for their store type, even
+            //   when there are LPO items in the same order.
+            // For Workshop store managers: show orders with warehouse products OR custom products
+            // For hardware store managers: show orders with hardware products
             $order = Order::with([
                     'site',
                     'products.category',
@@ -205,25 +214,19 @@ class StoreOrderController extends Controller
                 ])
                 ->where('id', $orderId)
                 ->where(function($q) use ($userRole) {
-                    // Show orders assigned to this role
-                    $q->where('store_manager_role', $userRole);
-                    
-                    // Also show orders that have products matching this store type
+                    // Show orders that have products matching this store type
                     if ($userRole === RoleEnum::WorkshopStoreManager->value) {
                         // Workshop store manager: show orders with warehouse products or custom products
-                        $q->orWhereHas('products', function($productQuery) {
+                        $q->whereHas('products', function($productQuery) {
                             $productQuery->where('store', StoreEnum::WarehouseStore->value);
                         })
                         ->orWhere('is_custom_product', 1);
                     } elseif ($userRole === RoleEnum::StoreManager->value) {
                         // Hardware store manager: show orders with hardware products
-                        $q->orWhereHas('products', function($productQuery) {
+                        $q->whereHas('products', function($productQuery) {
                             $productQuery->where('store', StoreEnum::HardwareStore->value);
                         });
                     }
-                })
-                ->where(function($q) {
-                    $q->where('is_lpo', 0)->orWhereNull('is_lpo');
                 })
                 ->first();
 

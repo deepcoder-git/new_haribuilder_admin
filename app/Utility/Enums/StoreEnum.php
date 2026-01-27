@@ -22,7 +22,7 @@ enum StoreEnum: string
     {
         return match($this) {
             self::HardwareStore => 'Hardware Store',
-            self::WarehouseStore => 'Workshop store',
+            self::WarehouseStore => 'Workshop Store',
             self::LPO => 'LPO(Local Purchase Order)'
         };
     }
