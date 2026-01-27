@@ -55,7 +55,7 @@ class OrderForm extends Component
     
     // Product status in_transit modal state
     public bool $showProductInTransitModal = false;
-    public ?string $productInTransitType = null; // 'hardware', 'warehouse', 'lpo', 'custom'
+    public ?string $productInTransitType = null; // 'hardware', 'workshop', 'lpo', 'custom'
     public ?string $productTempDriverName = null;
     public ?string $productTempVehicleNumber = null;
     public array $productDriverDetails = []; // Store driver details per product type
@@ -64,7 +64,7 @@ class OrderForm extends Component
     
     // Product status out for delivery modal state
     public bool $showProductOutForDeliveryModal = false;
-    public ?string $productOutForDeliveryType = null; // 'hardware', 'warehouse', 'lpo', 'custom'
+    public ?string $productOutForDeliveryType = null; // 'hardware', 'workshop', 'lpo', 'custom'
     public ?string $productOutForDeliveryDriverName = null;
     public ?string $productOutForDeliveryVehicleNumber = null;
     public ?string $productOutForDeliveryPreviousStatus = null; // Store previous status when modal opens
@@ -88,7 +88,7 @@ class OrderForm extends Component
     // Rejection details modal
     public bool $showRejectionDetailsModal = false;
     public array $rejectionDetailsProductStatuses = [];
-    public array $productRejectionNotes = []; // Store rejection notes per product type: ['hardware' => 'note', 'warehouse' => 'note', 'lpo' => ['supplier_id' => 'note'], 'custom' => 'note']
+    public array $productRejectionNotes = []; // Store rejection notes per product type: ['hardware' => 'note', 'workshop' => 'note', 'lpo' => ['supplier_id' => 'note'], 'custom' => 'note']
     public ?string $currentRejectionType = null; // Current product type being edited in modal
     public ?string $pendingRejectionType = null; // When selecting "rejected" from dropdown: store pending type until modal Save
     public ?string $pendingRejectionPreviousStatus = null; // Previous status to revert if modal is closed/cancelled
@@ -126,14 +126,14 @@ class OrderForm extends Component
     // Product Status for each product group (edit mode only)
     public array $productStatuses = [
         'hardware' => 'pending',
-        'warehouse' => 'pending',
+        'workshop' => 'pending',
         'lpo' => 'pending',
     ];
 
     // Persistent (user-friendly) status messages per group.
     // We avoid session()->flash here because Livewire re-renders can consume flash quickly.
-    public array $productStatusErrors = [];   // ['hardware' => '...', 'warehouse' => '...']
-    public array $productStatusSuccess = [];  // ['hardware' => '...', 'warehouse' => '...']
+    public array $productStatusErrors = [];   // ['hardware' => '...', 'workshop' => '...']
+    public array $productStatusSuccess = [];  // ['hardware' => '...', 'workshop' => '...']
 
     public function clearProductStatusMessage(string $type): void
     {
@@ -179,16 +179,21 @@ class OrderForm extends Component
         $hardware = isset($productStatus['hardware']) && $productStatus['hardware'] !== null && $productStatus['hardware'] !== '' && $productStatus['hardware'] !== 'null'
             ? $productStatus['hardware']
             : null;
-        $warehouse = isset($productStatus['warehouse']) && $productStatus['warehouse'] !== null && $productStatus['warehouse'] !== '' && $productStatus['warehouse'] !== 'null'
-            ? $productStatus['warehouse']
+        $workshop = isset($productStatus['workshop']) && $productStatus['workshop'] !== null && $productStatus['workshop'] !== '' && $productStatus['workshop'] !== 'null'
+            ? $productStatus['workshop']
             : null;
         $custom = isset($productStatus['custom']) && $productStatus['custom'] !== null && $productStatus['custom'] !== '' && $productStatus['custom'] !== 'null'
             ? $productStatus['custom']
             : null;
 
-        // Treat custom products as warehouse for status calculation when warehouse status is missing
-        if ($warehouse === null && $custom !== null) {
-            $warehouse = $custom;
+        // Map workshop bucket for combined status calculations
+        $workshop = isset($productStatus['workshop']) && $productStatus['workshop'] !== null && $productStatus['workshop'] !== '' && $productStatus['workshop'] !== 'null'
+            ? $productStatus['workshop']
+            : null;
+
+        // Treat custom products as workshop for status calculation when workshop status is missing
+        if ($workshop === null && $custom !== null) {
+            $workshop = $custom;
         }
         
         // LPO is supplier-wise (object), calculate combined status
@@ -212,49 +217,49 @@ class OrderForm extends Component
         }
         
         // Case 1: Hardware only - use hardware status directly
-        if ($hardware !== null && $warehouse === null && $lpo === null) {
+        if ($hardware !== null && $workshop === null && $lpo === null) {
             return $this->mapProductStatusToOrderStatus($hardware);
         }
         
-        // Case 2: Warehouse only - use warehouse status directly
-        if ($warehouse !== null && $hardware === null && $lpo === null) {
-            return $this->mapProductStatusToOrderStatus($warehouse);
+        // Case 2: Workshop only - use workshop status directly
+        if ($workshop !== null && $hardware === null && $lpo === null) {
+            return $this->mapProductStatusToOrderStatus($workshop);
         }
         
-        // Case 3: Hardware + Warehouse combinations (manage all cases)
-        if ($hardware !== null && $warehouse !== null && $lpo === null) {
+        // Case 3: Hardware + Workshop combinations (manage all cases)
+        if ($hardware !== null && $workshop !== null && $lpo === null) {
             // Both rejected → Rejected
-            if ($hardware === 'rejected' || $warehouse === 'rejected') {
+            if ($hardware === 'rejected' || $workshop === 'rejected') {
                 return 'rejected';
             }
             
             // Both approved → Approved
-            if ($hardware === 'approved' && $warehouse === 'approved') {
+            if ($hardware === 'approved' && $workshop === 'approved') {
                 return 'approved';
             }
             
-            // hardware=approved, warehouse=rejected → Approved (hardware approved takes priority)
-            if ($hardware === 'approved' && $warehouse === 'rejected') {
+            // hardware=approved, workshop=rejected → Approved (hardware approved takes priority)
+            if ($hardware === 'approved' && $workshop === 'rejected') {
                 return 'approved';
             }
             
-            // hardware=pending, warehouse=approved → Pending
-            if ($hardware === 'pending' && $warehouse === 'approved') {
+            // hardware=pending, workshop=approved → Pending
+            if ($hardware === 'pending' && $workshop === 'approved') {
                 return 'pending';
             }
             
-            // hardware=pending, warehouse=pending → Pending
-            if ($hardware === 'pending' && $warehouse === 'pending') {
+            // hardware=pending, workshop=pending → Pending
+            if ($hardware === 'pending' && $workshop === 'pending') {
                 return 'pending';
             }
             
-            // hardware=pending, warehouse=rejected → Pending
-            if ($hardware === 'pending' && $warehouse === 'rejected') {
+            // hardware=pending, workshop=rejected → Pending
+            if ($hardware === 'pending' && $workshop === 'rejected') {
                 return 'pending';
             }
             
-            // Default: if hardware is approved and warehouse is pending → Approved
-            if ($hardware === 'approved' && $warehouse === 'pending') {
+            // Default: if hardware is approved and workshop is pending → Approved
+            if ($hardware === 'approved' && $workshop === 'pending') {
                 return 'approved';
             }
             
@@ -262,46 +267,46 @@ class OrderForm extends Component
             return 'pending';
         }
         
-        // Case 4: Hardware + Warehouse + LPO combinations
-        if ($hardware !== null && $warehouse !== null && $lpo !== null) {
-            // Rule 1: hardware=pending, warehouse=approved, lpo=pending → "Pending"
-            if ($hardware === 'pending' && $warehouse === 'approved' && $lpo === 'pending') {
+        // Case 4: Hardware + Workshop + LPO combinations
+        if ($hardware !== null && $workshop !== null && $lpo !== null) {
+            // Rule 1: hardware=pending, workshop=approved, lpo=pending → "Pending"
+            if ($hardware === 'pending' && $workshop === 'approved' && $lpo === 'pending') {
                 return 'pending';
             }
             
-            // Rule 2: hardware=approved, warehouse=approved, lpo=rejected → "Approved"
-            if ($hardware === 'approved' && $warehouse === 'approved' && $lpo === 'rejected') {
+            // Rule 2: hardware=approved, workshop=approved, lpo=rejected → "Approved"
+            if ($hardware === 'approved' && $workshop === 'approved' && $lpo === 'rejected') {
                 return 'approved';
             }
             
-            // Rule 3: hardware=approved, warehouse=rejected, lpo=approved → "Approved"
-            if ($hardware === 'approved' && $warehouse === 'rejected' && $lpo === 'approved') {
+            // Rule 3: hardware=approved, workshop=rejected, lpo=approved → "Approved"
+            if ($hardware === 'approved' && $workshop === 'rejected' && $lpo === 'approved') {
                 return 'approved';
             }
             
-            // If hardware is approved AND at least one of (warehouse OR lpo) is approved → Approved
-            if ($hardware === 'approved' && ($warehouse === 'approved' || $lpo === 'approved')) {
+            // If hardware is approved AND at least one of (workshop OR lpo) is approved → Approved
+            if ($hardware === 'approved' && ($workshop === 'approved' || $lpo === 'approved')) {
                 return 'approved';
             }
             
             // If any is rejected (and hardware rule doesn't apply) → Rejected
-            if ($hardware === 'rejected' || $warehouse === 'rejected' || $lpo === 'rejected') {
+            if ($hardware === 'rejected' || $workshop === 'rejected' || $lpo === 'rejected') {
                 return 'rejected';
             }
             
             // All pending → Pending
-            if ($hardware === 'pending' && $warehouse === 'pending' && $lpo === 'pending') {
+            if ($hardware === 'pending' && $workshop === 'pending' && $lpo === 'pending') {
                 return 'pending';
             }
             
             // All approved → Approved
-            if ($hardware === 'approved' && $warehouse === 'approved' && $lpo === 'approved') {
+            if ($hardware === 'approved' && $workshop === 'approved' && $lpo === 'approved') {
                 return 'approved';
             }
         }
         
-        // Handle Hardware + LPO (without warehouse)
-        if ($hardware !== null && $lpo !== null && $warehouse === null) {
+        // Handle Hardware + LPO (without workshop)
+        if ($hardware !== null && $lpo !== null && $workshop === null) {
             if ($hardware === 'rejected' || $lpo === 'rejected') {
                 return 'rejected';
             }
@@ -317,22 +322,22 @@ class OrderForm extends Component
             return 'pending';
         }
         
-        // Handle Warehouse + LPO (without hardware)
-        if ($warehouse !== null && $lpo !== null && $hardware === null) {
-            if ($warehouse === 'rejected' || $lpo === 'rejected') {
+        // Handle Workshop + LPO (without hardware)
+        if ($workshop !== null && $lpo !== null && $hardware === null) {
+            if ($workshop === 'rejected' || $lpo === 'rejected') {
                 return 'rejected';
             }
-            if ($warehouse === 'pending' && $lpo === 'pending') {
+            if ($workshop === 'pending' && $lpo === 'pending') {
                 return 'pending';
             }
-            if ($warehouse === 'approved' && $lpo === 'approved') {
+            if ($workshop === 'approved' && $lpo === 'approved') {
                 return 'approved';
             }
             return 'approved';
         }
         
         // Handle LPO only
-        if ($lpo !== null && $hardware === null && $warehouse === null) {
+        if ($lpo !== null && $hardware === null && $workshop === null) {
             return $this->mapProductStatusToOrderStatusForDisplay($lpo);
         }
         
@@ -561,14 +566,14 @@ class OrderForm extends Component
     }
 
     /**
-     * Add a product row to a specific group (hardware, warehouse, lpo)
+     * Add a product row to a specific group (hardware, workshop, lpo)
      */
     public function addProductRowToGroup(string $groupType): void
     {
         $this->initializeProducts();
         
         // Validate group type
-        if (!in_array($groupType, ['hardware', 'warehouse', 'lpo'])) {
+        if (!in_array($groupType, ['hardware', 'workshop', 'lpo'])) {
             $groupType = 'hardware';
         }
         
@@ -576,7 +581,7 @@ class OrderForm extends Component
         $this->orderProducts[] = [
             'product_id' => '', 
             'quantity' => '', 
-            'is_custom' => 0, // Can be regular or custom for warehouse
+            'is_custom' => 0, // Can be regular or custom for workshop
             'custom_note' => '', 
             'custom_images' => [],
             'product_type' => $groupType,
@@ -604,7 +609,7 @@ class OrderForm extends Component
     }
 
     /**
-     * Add a custom product row to warehouse group
+     * Add a custom product row to workshop group
      */
     public function addCustomProductRowToGroup(): void
     {
@@ -616,7 +621,7 @@ class OrderForm extends Component
             'is_custom' => 1,
             'custom_note' => '',
             'custom_images' => [],
-            'product_type' => 'warehouse', // Custom products belong to warehouse
+            'product_type' => 'workshop', // Custom products belong to workshop
         ];
         $this->orderProducts = array_values($this->orderProducts);
     }
@@ -630,7 +635,7 @@ class OrderForm extends Component
             'is_custom' => 1, 
             'custom_note' => '', 
             'custom_images' => [],
-            'product_type' => 'warehouse', // Custom products belong to warehouse
+            'product_type' => 'workshop', // Custom products belong to workshop
         ];
         $this->orderProducts = array_values($this->orderProducts);
     }
@@ -894,43 +899,43 @@ class OrderForm extends Component
         return match($orderStatus) {
             'pending' => [
                 'hardware' => 'pending',
-                'warehouse' => 'approved', // Warehouse is approved even when order is pending
+                'workshop' => 'approved', // Warehouse is approved even when order is pending
                 'lpo' => 'pending',
                 'custom' => 'pending',
             ],
             'approved' => [
                 'hardware' => 'approved',
-                'warehouse' => 'approved',
+                'workshop' => 'approved',
                 'lpo' => 'approved', // Default to approved, but can be manually changed to rejected
                 'custom' => 'approved',
             ],
             'in_transit' => [
                 'hardware' => 'in_transit',
-                'warehouse' => 'in_transit',
+                'workshop' => 'in_transit',
                 'lpo' => 'in_transit',
                 'custom' => 'in_transit',
             ],
             'outfordelivery' => [
                 'hardware' => 'outfordelivery',
-                'warehouse' => 'outfordelivery',
+                'workshop' => 'outfordelivery',
                 'lpo' => 'outfordelivery',
                 'custom' => 'outfordelivery',
             ],
             'delivered', 'completed' => [
                 'hardware' => 'delivered',
-                'warehouse' => 'delivered',
+                'workshop' => 'delivered',
                 'lpo' => 'delivered',
                 'custom' => 'delivered',
             ],
             'rejected' => [
                 'hardware' => 'rejected',
-                'warehouse' => 'rejected',
+                'workshop' => 'rejected',
                 'lpo' => 'rejected',
                 'custom' => 'rejected',
             ],
             default => [
                 'hardware' => 'pending',
-                'warehouse' => 'pending',
+                'workshop' => 'pending',
                 'lpo' => 'pending',
                 'custom' => 'pending',
             ],
@@ -990,9 +995,10 @@ class OrderForm extends Component
                 $order->setProductStatus('hardware', $mappedStatuses['hardware']);
                 $this->productStatuses['hardware'] = $mappedStatuses['hardware'];
             }
-            if ($hasWarehouse && isset($mappedStatuses['warehouse'])) {
-                $order->setProductStatus('warehouse', $mappedStatuses['warehouse']);
-                $this->productStatuses['warehouse'] = $mappedStatuses['warehouse'];
+            if ($hasWarehouse && isset($mappedStatuses['workshop'])) {
+                // Map underlying 'warehouse' bucket from DB to workshop UI key
+                $order->setProductStatus('workshop', $mappedStatuses['workshop']);
+                $this->productStatuses['workshop'] = $mappedStatuses['workshop'];
             }
             if ($hasLpo && isset($mappedStatuses['lpo'])) {
                 // For LPO, if mapped status is a string, apply to all suppliers
@@ -1065,7 +1071,7 @@ class OrderForm extends Component
             foreach ($this->orderProducts as $product) {
                 $productType = $product['product_type'] ?? 'hardware';
                 $isCustom = !empty($product['is_custom'] ?? 0);
-                if ($productType === 'warehouse' || $isCustom) {
+            if ($productType === 'workshop' || $isCustom) {
                     $hasWorkshopProducts = true;
                     break;
                 }
@@ -1079,7 +1085,7 @@ class OrderForm extends Component
 
             // Check if we have driver details for workshop types (warehouse/custom)
             $hasDriverDetails = false;
-            foreach (['warehouse', 'custom'] as $type) {
+            foreach (['workshop', 'custom'] as $type) {
                 $details = $this->productDriverDetails[$type] ?? [];
                 if (!empty($details['driver_name']) && !empty($details['vehicle_number'])) {
                     $hasDriverDetails = true;
@@ -1118,7 +1124,7 @@ class OrderForm extends Component
             // Update previous status for other changes
             // Only consider driver details requirement for in_transit on workshop orders
             $hasDriverDetails = false;
-            foreach (['warehouse', 'custom'] as $type) {
+            foreach (['workshop', 'custom'] as $type) {
                 $details = $this->productDriverDetails[$type] ?? [];
                 if (!empty($details['driver_name']) && !empty($details['vehicle_number'])) {
                     $hasDriverDetails = true;
@@ -1143,12 +1149,12 @@ class OrderForm extends Component
         ]);
         
         // Save the temporary values to product driver details
-        // For order-level in_transit, save ONLY for workshop-related types (warehouse/custom)
+        // For order-level in_transit, save ONLY for workshop-related types (workshop/custom)
         // and only where details don't exist yet.
         $driverName = trim($this->temp_driver_name);
         $vehicleNumber = trim($this->temp_vehicle_number);
         
-        foreach (['warehouse', 'custom'] as $type) {
+        foreach (['workshop', 'custom'] as $type) {
             if (empty($this->productDriverDetails[$type]['driver_name']) || 
                 empty($this->productDriverDetails[$type]['vehicle_number'])) {
                 $this->productDriverDetails[$type] = [
@@ -1276,10 +1282,10 @@ class OrderForm extends Component
                 // Edit mode: Filter by product type to show only relevant products
                 $productType = $this->orderProducts[$index]['product_type'] ?? 'hardware';
                 
-                // For warehouse/custom orders, show ALL warehouse products
+                // For workshop/custom orders, show ALL warehouse products
                 // For other types, filter by store
-                if ($productType === 'warehouse') {
-                    // Show all warehouse store products for warehouse/custom orders
+                if ($productType === 'workshop') {
+                    // Show all warehouse store products for workshop/custom orders
                     $query->where('store', StoreEnum::WarehouseStore);
                 } else {
                     // Map product_type to StoreEnum for other types
@@ -1876,7 +1882,7 @@ class OrderForm extends Component
         }
         
         // Validate product type
-        if (!in_array($type, ['hardware', 'warehouse', 'lpo', 'custom'])) {
+        if (!in_array($type, ['hardware', 'workshop', 'lpo', 'custom'])) {
             return;
         }
         
@@ -1996,7 +2002,7 @@ class OrderForm extends Component
         if ($status === 'rejected' && $currentStatus !== 'rejected') {
             $labels = [
                 'hardware' => 'Hardware',
-                'warehouse' => 'Warehouse',
+                'workshop' => 'Workshop',
                 'lpo' => 'LPO',
                 'custom' => 'Custom',
             ];
@@ -2252,8 +2258,8 @@ class OrderForm extends Component
             // If status is outfordelivery, save driver details for out for delivery
             // and, for warehouse/custom, perform stock check & deduction here.
             if ($status === 'outfordelivery') {
-                // WAREHOUSE/CUSTOM: pre-check & deduct on "outfordelivery"
-                if (in_array($type, ['warehouse', 'custom'], true) && $oldStatus !== 'outfordelivery') {
+                // WORKSHOP/CUSTOM: pre-check & deduct on "outfordelivery"
+                if (in_array($type, ['workshop', 'custom'], true) && $oldStatus !== 'outfordelivery') {
                     $check = $this->canApproveProductType($order, $type);
                     if (!($check['ok'] ?? false)) {
                         $msg = (string) ($check['message'] ?? "{$type}: Insufficient stock.");
@@ -2308,8 +2314,8 @@ class OrderForm extends Component
                     $hadStockDeducted = true;
                 }
 
-                // Warehouse/Custom: stock is deducted when status becomes "outfordelivery"
-                if (in_array($type, ['warehouse', 'custom'], true) && in_array($oldStatus, ['outfordelivery', 'in_transit', 'delivered'], true)) {
+                // Workshop/Custom: stock is deducted when status becomes "outfordelivery"
+                if (in_array($type, ['workshop', 'custom'], true) && in_array($oldStatus, ['outfordelivery', 'in_transit', 'delivered'], true)) {
                     $hadStockDeducted = true;
                 }
 
@@ -2774,7 +2780,7 @@ class OrderForm extends Component
         $orderDriverDetails = $model->product_driver_details ?? [];
         $this->productDriverDetails = [
             'hardware' => $orderDriverDetails['hardware'] ?? ['driver_name' => null, 'vehicle_number' => null],
-            'warehouse' => $orderDriverDetails['warehouse'] ?? ['driver_name' => null, 'vehicle_number' => null],
+            'workshop' => $orderDriverDetails['workshop'] ?? ['driver_name' => null, 'vehicle_number' => null],
             'lpo' => $orderDriverDetails['lpo'] ?? ['driver_name' => null, 'vehicle_number' => null],
             'custom' => $orderDriverDetails['custom'] ?? ['driver_name' => null, 'vehicle_number' => null],
         ];
@@ -2873,7 +2879,7 @@ class OrderForm extends Component
                 'custom_note' => $customProduct->custom_note ?? '',
                 'custom_images' => $customImages,
                 'custom_product_id' => $customProduct->id,
-                'product_type' => 'warehouse', // Custom products belong to warehouse
+                'product_type' => 'workshop', // Custom products belong to workshop
                 'product_ids' => $productIds, // Store product_ids for popup editing
             ];
             
@@ -3183,7 +3189,8 @@ class OrderForm extends Component
                         $productStatusPayload['hardware'] = $this->productStatuses['hardware'] ?? 'pending';
                     }
                     if ($hasWarehouseProducts || $hasCustomProducts) {
-                        $productStatusPayload['warehouse'] = $this->productStatuses['warehouse'] ?? 'pending';
+                        // Persist as 'warehouse' in DB but use 'workshop' key in UI
+                        $productStatusPayload['workshop'] = $this->productStatuses['workshop'] ?? 'pending';
                     }
                     if ($hasLpoProducts) {
                         $productStatusPayload['lpo'] = $lpoStatus;
@@ -3490,7 +3497,7 @@ class OrderForm extends Component
                     // Initialize product_status based on product groups
                     $productStatus = [
                         'hardware' => $this->productStatuses['hardware'] ?? 'pending',
-                        'warehouse' => $this->productStatuses['warehouse'] ?? 'pending',
+                        'workshop' => $this->productStatuses['workshop'] ?? 'pending',
                         'lpo' => [], // Supplier-wise: {supplier_id: status}
                     ];
                     
@@ -3742,7 +3749,7 @@ class OrderForm extends Component
                     }
                 }
             }
-        } elseif ($type === 'warehouse') {
+        } elseif ($type === 'workshop') {
             foreach ($order->products as $product) {
                 if ($product->store === StoreEnum::WarehouseStore) {
                     $pivot = $product->pivot;
@@ -3901,8 +3908,8 @@ class OrderForm extends Component
                     }
                 }
             }
-        } elseif ($type === 'warehouse') {
-            // Get warehouse store products
+        } elseif ($type === 'workshop') {
+            // Get workshop (warehouse store) products
             foreach ($order->products as $product) {
                 if ($product->store === StoreEnum::WarehouseStore) {
                     $pivot = $product->pivot;
@@ -4129,7 +4136,7 @@ class OrderForm extends Component
                     }
                 }
             }
-        } elseif ($type === 'warehouse') {
+        } elseif ($type === 'workshop') {
             foreach ($order->products as $product) {
                 if ($product->store === StoreEnum::WarehouseStore) {
                     $pivot = $product->pivot;
@@ -4139,7 +4146,7 @@ class OrderForm extends Component
                 }
             }
 
-            // Include custom products (warehouse type)
+            // Include custom products (workshop/warehouse type)
             $customProducts = $order->customProducts;
             if ($customProducts && $customProducts->isNotEmpty()) {
                 foreach ($customProducts as $customProduct) {
@@ -4599,7 +4606,7 @@ class OrderForm extends Component
     }
 
     /**
-     * Get product type for grouping (hardware, warehouse, lpo)
+     * Get product type for grouping (hardware, workshop, lpo)
      */
     protected function getProductType(Product $product): string
     {
@@ -4610,7 +4617,7 @@ class OrderForm extends Component
         if ($product->store === StoreEnum::LPO) {
             return 'lpo';
         } elseif ($product->store === StoreEnum::WarehouseStore) {
-            return 'warehouse';
+            return 'workshop';
         } else {
             return 'hardware';
         }
@@ -5079,7 +5086,7 @@ class OrderForm extends Component
         if (!empty($productStatus)) {
             $statusLabels = [
                 'hardware' => 'Hardware',
-                'warehouse' => 'Warehouse',
+                'Workshop' => 'Workshop',
                 'lpo' => 'LPO',
                 'custom' => 'Custom',
             ];
@@ -5866,7 +5873,7 @@ class OrderForm extends Component
 
         $grouped = [
             'hardware' => [],
-            'warehouse' => [],
+            'workshop' => [],
             'lpo' => [],
         ];
 
@@ -5875,7 +5882,7 @@ class OrderForm extends Component
             
             // Determine type based on product or custom
             if (($product['is_custom'] ?? 0) == 1) {
-                $productType = 'warehouse'; // Custom products go to warehouse
+                $productType = 'workshop'; // Custom products go to workshop
             } elseif (!empty($product['product_id'])) {
                 $productModel = Product::find($product['product_id']);
                 if ($productModel) {

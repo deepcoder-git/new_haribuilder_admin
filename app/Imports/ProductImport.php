@@ -265,7 +265,7 @@ class ProductImport implements ToCollection, WithHeadingRow, WithCustomCsvSettin
             'lpo (local purchase order)' => 'LPO(Local Purchase Order)',
             // Partial matches
             'hardware' => 'Hardware Store',
-            'warehouse' => 'Workshop store',
+            'workshop' => 'Workshop store',
             'lpo' => 'LPO(Local Purchase Order)',
             // Workshop store should map to Hardware Store (or we can add it as a new store)
             'workshop store' => 'Hardware Store',

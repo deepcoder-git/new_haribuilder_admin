@@ -1356,7 +1356,7 @@ HTML;
             'Category' => 'tags',
             'Unit' => 'ruler',
             'Supplier' => 'truck',
-            'Stock' => 'warehouse',
+            'Stock' => 'workshop',
             'Order' => 'file-invoice',
             'Delivery' => 'truck-fast',
             'User' => 'user',

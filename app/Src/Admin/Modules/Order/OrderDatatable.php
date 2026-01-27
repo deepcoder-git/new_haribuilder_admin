@@ -684,7 +684,7 @@ class OrderDatatable extends Component
         if (!empty($productStatus)) {
             $statusLabels = [
                 'hardware' => 'Hardware',
-                'warehouse' => 'Warehouse',
+                'workshop' => 'Workshop',
                 'lpo' => 'LPO',
                 'custom' => 'Custom',
             ];
@@ -870,7 +870,7 @@ class OrderDatatable extends Component
         
         $statusLabels = [
             'hardware' => 'Hardware',
-            'warehouse' => 'Warehouse',
+            'workshop' => 'Workshop',
             'lpo' => 'LPO'
         ];
         
