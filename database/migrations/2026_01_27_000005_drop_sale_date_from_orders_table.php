@@ -16,6 +16,16 @@ return new class extends Migration
 
         // Drop index that includes sale_date, then drop the column itself if it exists.
         Schema::table('orders', function (Blueprint $table) {
+            // First, try to drop any foreign key that might be using this index name.
+            // Some environments may have created a foreign key constraint with the
+            // same name as the index (`orders_site_id_sale_date_index`), which would
+            // prevent the index from being dropped directly.
+            try {
+                $table->dropForeign('orders_site_id_sale_date_index');
+            } catch (\Throwable $e) {
+                // Foreign key might not exist; ignore
+            }
+
             // Guarded drop of composite index if present
             try {
                 $table->dropIndex('orders_site_id_sale_date_index');
