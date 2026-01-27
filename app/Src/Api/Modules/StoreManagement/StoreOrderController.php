@@ -318,10 +318,29 @@ class StoreOrderController extends Controller
                 );
             }
 
-            $order = Order::findOrFail($request->order_id);
+            $order = Order::with(['products', 'customProducts'])->findOrFail($request->order_id);
             $userRole = $user->role?->value ?? null;
 
-            if ($order->store_manager_role !== $userRole) {
+            // Ensure this order actually has products for this store manager type
+            $hasHardwareProducts = false;
+            $hasWarehouseOrCustomProducts = $order->customProducts && $order->customProducts->isNotEmpty();
+
+            foreach ($order->products as $product) {
+                if ($product->store === StoreEnum::HardwareStore) {
+                    $hasHardwareProducts = true;
+                } elseif ($product->store === StoreEnum::WarehouseStore) {
+                    $hasWarehouseOrCustomProducts = true;
+                }
+            }
+
+            $authorized = false;
+            if ($userRole === RoleEnum::StoreManager->value && $hasHardwareProducts) {
+                $authorized = true;
+            } elseif ($userRole === RoleEnum::WorkshopStoreManager->value && $hasWarehouseOrCustomProducts) {
+                $authorized = true;
+            }
+
+            if (!$authorized) {
                 return new ApiErrorResponse(
                     ['errors' => ['Unauthorized access to this order']],
                     'order status update failed',
@@ -475,19 +494,6 @@ class StoreOrderController extends Controller
             }
         }
         
-        // Fallback: if no product types determined, check order's store_manager_role
-        if (empty($productStatusTypesToUpdate)) {
-            $orderStoreManagerRole = $order->store_manager_role;
-            if ($orderStoreManagerRole === RoleEnum::StoreManager->value && $hasHardwareProducts) {
-                $productStatusTypesToUpdate[] = 'hardware';
-            } elseif ($orderStoreManagerRole === RoleEnum::WorkshopStoreManager->value) {
-                // Both warehouse and custom products use 'warehouse' key
-                if ($hasWarehouseProducts || $hasCustomProducts) {
-                    $productStatusTypesToUpdate[] = 'warehouse';
-                }
-            }
-        }
-
         // Update product_status for each type
         foreach ($productStatusTypesToUpdate as $type) {
             $order->updateProductStatus($type, 'rejected');
@@ -605,20 +611,6 @@ class StoreOrderController extends Controller
                 }
             }
             
-            // Fallback: if no product types determined, check order's store_manager_role
-            // This handles edge cases where user role might not match
-            if (empty($productStatusTypesToUpdate)) {
-                $orderStoreManagerRole = $order->store_manager_role;
-                if ($orderStoreManagerRole === RoleEnum::StoreManager->value && $hasHardwareProducts) {
-                    $productStatusTypesToUpdate[] = 'hardware';
-                } elseif ($orderStoreManagerRole === RoleEnum::WorkshopStoreManager->value) {
-                    // Both warehouse and custom products use 'warehouse' key
-                    if ($hasWarehouseProducts || $hasCustomProducts) {
-                        $productStatusTypesToUpdate[] = 'warehouse';
-                    }
-                }
-            }
-
             // Update product_status for each type
             foreach ($productStatusTypesToUpdate as $type) {
                 $order->updateProductStatus($type, 'approved');

@@ -266,8 +266,11 @@ class TransportManagerController extends Controller
                 'delivery_status' => $deliveryStatus,
             ]);
 
-            $baseQuery = Order::where('store_manager_role', RoleEnum::WorkshopStoreManager->value)
-                ->where('is_lpo', 0); // TransportManager: only Workshop orders, exclude LPO
+            // Base query: Workshop (warehouse) orders only, exclude LPO
+            $baseQuery = Order::where('is_lpo', 0)
+                ->whereHas('products', function (Builder $q) {
+                    $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                });
             
             $totalWithRole = $baseQuery->count();
             Log::info('TransportManagerController::getOrders - Orders with role', [
@@ -277,8 +280,11 @@ class TransportManagerController extends Controller
 
             $query = Order::with(['site','products.category', 'products.productImages'])
                 ->whereIn('delivery_status',['approved','in_transit','delivered','outfordelivery'])
-                ->where('store_manager_role', RoleEnum::WorkshopStoreManager->value)
-                ->where('is_lpo', 0) // TransportManager: only Workshop orders, exclude LPO
+                // Workshop (warehouse) orders only, exclude LPO
+                ->where('is_lpo', 0)
+                ->whereHas('products', function (Builder $q) {
+                    $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                })
                 ->when($deliveryStatus && $deliveryStatus !== 'all', function (Builder $query) use ($deliveryStatus) {
                     $query->where('delivery_status', $deliveryStatus);
                 })
@@ -337,13 +343,13 @@ class TransportManagerController extends Controller
             }
 
             $orderExists = Order::where('id', $orderId)->first();
-            
+
             Log::info('TransportManagerController::getOrderDetails', [
                 'order_id' => $orderId,
                 'user_id' => $user->id,
                 'user_role' => $userRole,
-                'order_exists' => $orderExists ? true : false,
-                'order_store_manager_role' => $orderExists?->store_manager_role,
+                'order_exists' => (bool) $orderExists,
+                // Removed store_manager_role to avoid accessing a missing attribute
                 'order_is_lpo' => $orderExists?->is_lpo,
                 'order_is_custom_product' => $orderExists?->is_custom_product,
             ]);
@@ -355,8 +361,11 @@ class TransportManagerController extends Controller
                     'customProducts'
                 ])
                 ->where('id', $orderId)
-                ->where('store_manager_role', RoleEnum::WorkshopStoreManager->value)
-                ->where('is_lpo', 0) // TransportManager: only Workshop orders, exclude LPO
+                // Workshop (warehouse) orders only, exclude LPO
+                ->where('is_lpo', 0)
+                ->whereHas('products', function (Builder $q) {
+                    $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                })
                 ->first();
 
             if (!$order) {

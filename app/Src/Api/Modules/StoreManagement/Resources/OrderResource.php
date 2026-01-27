@@ -18,15 +18,9 @@ class OrderResource extends JsonResource
     public function toArray(Request $request): array
     {
         // Check store manager type to determine response format
-        // Get store manager dynamically based on store_manager_role
+        // Get store manager dynamically (store_manager_role column has been removed)
         $storeManager = $this->storeManager(); // Call as method, not property
-        $storeManagerRole = null;
-        if ($storeManager) {
-            $storeManagerRole = $storeManager->getRole();
-        } elseif ($this->store_manager_role) {
-            // If store_manager_role exists but no manager found, use the role directly
-            $storeManagerRole = \App\Utility\Enums\RoleEnum::tryFrom($this->store_manager_role);
-        }
+        $storeManagerRole = $storeManager?->getRole();
         $isWarehouseStoreManager = $storeManagerRole === RoleEnum::WorkshopStoreManager;
         
         // Determine store type name
@@ -441,7 +435,8 @@ class OrderResource extends JsonResource
             'site_id' => $this->site->id ?? null,
             'site_name' => $this->site->name ?? null,
             'site_manager_id' => $this->site_manager_id ?? null,
-            'store_manager_role' => $this->store_manager_role ?? null,
+            // Derived from product types / moderator role; underlying column removed
+            'store_manager_role' => $storeManagerRole?->value ?? null,
             // Store column removed - store type determined from products
             'store_manager_id' => $this->storeManager()?->id ?? null, // For backward compatibility
             'site_location' => $this->site->location ?? null,

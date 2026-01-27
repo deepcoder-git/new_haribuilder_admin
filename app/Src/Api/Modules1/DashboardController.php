@@ -58,18 +58,27 @@ class DashboardController extends Controller
             }
             if($role == RoleEnum::StoreManager->value){
                 $user = $request->user();
-                $storeManagerRole = $user->role?->value ?? null;
 
-                $pending_orders = Order::where('store_manager_role', $storeManagerRole)
+                // Hardware Store Manager: orders with hardware products (non-LPO)
+                $pending_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'pending')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::HardwareStore->value);
+                    })
                     ->count();
 
-                $urgent_orders = Order::where('store_manager_role', $storeManagerRole)
+                $urgent_orders = Order::where('is_lpo', 0)
                     ->where('priority', PriorityEnum::High->value)
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::HardwareStore->value);
+                    })
                     ->count();
 
-                $return_orders = Order::where('store_manager_role', $storeManagerRole)
+                $return_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'return')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::HardwareStore->value);
+                    })
                     ->count();
 
                  // Count products for this StoreManager
@@ -84,7 +93,7 @@ class DashboardController extends Controller
                     'urgent_orders'    => $urgent_orders,
                     'total_store'      => $total_store,
                     'inventory_products' => $inventory_products,
-                    'store_manager_role' => $storeManagerRole
+                    'store_manager_role' => $user->role?->value ?? null
                 ];
                 return new ApiResponse(
                     isError: false,
@@ -95,25 +104,41 @@ class DashboardController extends Controller
             }
             if($role == RoleEnum::WorkshopStoreManager->value){
                 $user = $request->user();
-                $storeManagerRole = $user->role?->value ?? null;
-                $pending_orders = Order::where('store_manager_role', $storeManagerRole)
+
+                // Workshop Store Manager: warehouse/custom orders (non-LPO)
+                $pending_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'pending')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                    })
                     ->count();
 
-                $delayed_orders = Order::where('store_manager_role', $storeManagerRole)
+                $delayed_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'delayed')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                    })
                     ->count();
                     
-                $approved_orders = Order::where('store_manager_role', $storeManagerRole)
+                $approved_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'approved')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                    })
                     ->count();
 
-                $delivered_orders = Order::where('store_manager_role', $storeManagerRole)
+                $delivered_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'delivered')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                    })
                     ->count();
                     
-                $rejected_orders = Order::where('store_manager_role', $storeManagerRole)
+                $rejected_orders = Order::where('is_lpo', 0)
                     ->where('delivery_status', 'rejected')
+                    ->whereHas('products', function ($q) {
+                        $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
+                    })
                     ->count();
 
                 $dashboard_data = [

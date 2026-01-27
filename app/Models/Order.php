@@ -191,6 +191,91 @@ class Order extends Model
     }
 
     /**
+     * Count pending orders for a given Site Manager (optionally filtered by site)
+     */
+    public static function countPendingOrdersForSiteManager(int $siteManagerId, ?int $siteId = null): int
+    {
+        $query = self::query()
+            ->where('site_manager_id', $siteManagerId)
+            ->where('status', OrderStatusEnum::Pending->value);
+
+        if ($siteId !== null) {
+            $query->where('site_id', $siteId);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Count approved orders for a given Site Manager (optionally filtered by site)
+     */
+    public static function countApprovedOrdersForSiteManager(int $siteManagerId, ?int $siteId = null): int
+    {
+        $query = self::query()
+            ->where('site_manager_id', $siteManagerId)
+            ->where('status', OrderStatusEnum::Approved->value);
+
+        if ($siteId !== null) {
+            $query->where('site_id', $siteId);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Count delivered orders for a given Site Manager (optionally filtered by site)
+     */
+    public static function countDeliveredOrdersForSiteManager(int $siteManagerId, ?int $siteId = null): int
+    {
+        $query = self::query()
+            ->where('site_manager_id', $siteManagerId)
+            ->where('status', OrderStatusEnum::Delivery->value);
+
+        if ($siteId !== null) {
+            $query->where('site_id', $siteId);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Count rejected orders for a given Site Manager (optionally filtered by site)
+     */
+    public static function countRejectedOrdersForSiteManager(int $siteManagerId, ?int $siteId = null): int
+    {
+        $query = self::query()
+            ->where('site_manager_id', $siteManagerId)
+            ->where('status', OrderStatusEnum::Rejected->value);
+
+        if ($siteId !== null) {
+            $query->where('site_id', $siteId);
+        }
+
+        return $query->count();
+    }
+
+    /**
+     * Count delayed orders for a given Site Manager (optionally filtered by site)
+     * Delayed = expected_delivery_date is in the past and status is Approved or InTransit
+     */
+    public static function countDelayedOrdersForSiteManager(int $siteManagerId, ?int $siteId = null): int
+    {
+        $query = self::query()
+            ->where('site_manager_id', $siteManagerId)
+            ->whereDate('expected_delivery_date', '<', Carbon::now())
+            ->whereIn('status', [
+                OrderStatusEnum::Approved->value,
+                OrderStatusEnum::InTransit->value,
+            ]);
+
+        if ($siteId !== null) {
+            $query->where('site_id', $siteId);
+        }
+
+        return $query->count();
+    }
+
+    /**
      * Initialize product_status with default values
      * LPO is managed supplier-wise (object with supplier IDs as keys)
      */
