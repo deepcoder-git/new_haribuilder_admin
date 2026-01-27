@@ -616,12 +616,6 @@ class OrderController extends Controller
             }
 
             // Process customer image if provided
-            if ($request->hasFile('customer_image')) {
-                $customerImagePath = $this->processCustomerImage($request);
-                if ($customerImagePath) {
-                    $updateData['customer_image'] = $customerImagePath;
-                }
-            }
 
             // Use product_status to determine if order is approved/in_transit
             $isApprovedOrInTransit = in_array($currentProductStatus, ['approved', 'in_transit'], true);
@@ -2562,8 +2556,6 @@ class OrderController extends Controller
 
         $order->update([
             'status' => OrderStatusEnum::Delivery->value,
-            'is_completed' => true,
-            'completed_at' => now(),
         ]);
 
         $order->updateProductStatus($productStatusType, 'delivered');
@@ -2711,20 +2703,7 @@ class OrderController extends Controller
             );
         }
 
-        $storeUpdateData = [];
-        $role = $storeManager->getRole();
-        
-        if ($role === RoleEnum::StoreManager) {
-            $storeUpdateData['store_manager_role'] = RoleEnum::StoreManager->value;
-            $storeUpdateData['store'] = StoreEnum::HardwareStore->value;
-        } elseif ($role === RoleEnum::WorkshopStoreManager) {
-            $storeUpdateData['store_manager_role'] = RoleEnum::WorkshopStoreManager->value;
-            $storeUpdateData['store'] = StoreEnum::WarehouseStore->value;
-        }
-
-        if (!empty($storeUpdateData)) {
-            $order->update($storeUpdateData);
-        }
+        // Store manager role and store column removed - store type determined from products
 
         $order->updateProductStatus($productStatusType, 'received');
         $storeManager->notify(new \App\Notifications\OrderReceivedNotification($order));
@@ -2871,9 +2850,7 @@ class OrderController extends Controller
                 $order->site_manager_id = $request->user()->id;
                 $order->site_id     = $orderDetails->site_id;
                 $order->priority    = $orderDetails->priority;
-                $order->sale_date   = $orderDetails->sale_date;
                 $order->note        = $orderDetails->note;
-                $order->customer_image = $orderDetails->customer_image;
                 $order->save();
 
                 if (!empty($productsData)) {
@@ -3725,11 +3702,7 @@ class OrderController extends Controller
             //     );
             // }
 
-            // Process customer image
-            $customerImagePath = $this->processCustomerImage($request);
-
             // Parse dates
-            $saleDate = now()->toDateString();
             $expectedDeliveryDate = $this->parseDeliveryDate($formData['expected_delivery_date'] ?? null);
 
             // Create a single order with all products (hardware, workshop, LPO, custom)
@@ -3738,8 +3711,6 @@ class OrderController extends Controller
                 $productsData,
                 $customProductsData,
                 $formData,
-                $customerImagePath,
-                $saleDate,
                 $expectedDeliveryDate,
                 $supplierMapping
             );
@@ -4275,8 +4246,6 @@ class OrderController extends Controller
      * @param array $productsData Regular products array [product_id => ['quantity' => ...]]
      * @param array $customProductsData Custom products array
      * @param array $formData
-     * @param string|null $customerImagePath
-     * @param string $saleDate
      * @param string $expectedDeliveryDate
      * @param array $supplierMapping Supplier mapping for LPO products [product_id => supplier_id]
      * @return Order|null
@@ -4286,8 +4255,6 @@ class OrderController extends Controller
         array $productsData,
         array $customProductsData,
         array $formData,
-        ?string $customerImagePath,
-        string $saleDate,
         string $expectedDeliveryDate,
         array $supplierMapping = []
     ): ?Order {
@@ -4359,16 +4326,11 @@ class OrderController extends Controller
         $order->site_manager_id = $user->id;
         $order->site_id = $formData['site_id'];
         $order->priority = $formData['priority'];
-        $order->sale_date = $saleDate;
         $order->expected_delivery_date = $expectedDeliveryDate;
         $order->note = $formData['notes'] ?? null;
-        $order->customer_image = $customerImagePath;
         $order->is_lpo = $hasLpoProducts;
         $order->is_custom_product = $hasCustomProducts;
         $order->status = OrderStatusEnum::Pending;
-        $order->is_completed = false;
-        $order->store_manager_role = $storeManagerRole;
-        // Store column removed - store type determined from products
         $order->product_status = $productStatus;
         $order->supplier_id = $supplierMapping;
         $order->save();
@@ -4420,8 +4382,6 @@ class OrderController extends Controller
         array $customProductsData,
         array $lpoProductsData,
         array $formData,
-        ?string $customerImagePath,
-        string $saleDate,
         string $expectedDeliveryDate,
         ?int $storeManagerId
     ): array {
@@ -4448,8 +4408,6 @@ class OrderController extends Controller
             $regularOrder = $this->createRegularOrder(
                 $request,
                 $formData,
-                $customerImagePath,
-                $saleDate,
                 $expectedDeliveryDate,
                 $storeManagerRole,
                 $store,
@@ -4469,8 +4427,6 @@ class OrderController extends Controller
             $lpoOrder = $this->createLpoOrder(
                 $request,
                 $formData,
-                $customerImagePath,
-                $saleDate,
                 $expectedDeliveryDate,
                 false,
                 StoreEnum::LPO->value
@@ -4489,8 +4445,6 @@ class OrderController extends Controller
             $customOrder = $this->createCustomOrder(
                 $request,
                 $formData,
-                $customerImagePath,
-                $saleDate,
                 $expectedDeliveryDate
             );
 
@@ -4514,8 +4468,6 @@ class OrderController extends Controller
     private function createRegularOrder(
         Request $request,
         array $formData,
-        ?string $customerImagePath,
-        string $saleDate,
         string $expectedDeliveryDate,
         ?string $storeManagerRole,
         ?string $store,
@@ -4530,18 +4482,11 @@ class OrderController extends Controller
         $order->site_manager_id = $user->id;
         $order->site_id = $formData['site_id'];
         $order->priority = $formData['priority'];
-        $order->sale_date = $saleDate;
         $order->expected_delivery_date = $expectedDeliveryDate;
         $order->note = $formData['notes'] ?? null;
-        $order->customer_image = $customerImagePath;
         $order->is_lpo = false;
         $order->is_custom_product = $isCustomProduct;
         $order->status = OrderStatusEnum::Pending;
-        $order->is_completed = false;
-
-        // Set store_manager_role
-        $order->store_manager_role = $storeManagerRole;
-        // Store column removed - store type determined from products
 
         $order->save();
         return $order;
@@ -4553,8 +4498,6 @@ class OrderController extends Controller
     private function createLpoOrder(
         Request $request,
         array $formData,
-        ?string $customerImagePath,
-        string $saleDate,
         string $expectedDeliveryDate,
         bool $isCustomProduct = false,
         ?string $store = null
@@ -4568,18 +4511,11 @@ class OrderController extends Controller
         $order->site_manager_id = $user->id;
         $order->site_id = $formData['site_id'];
         $order->priority = $formData['priority'];
-        $order->sale_date = $saleDate;
         $order->expected_delivery_date = $expectedDeliveryDate;
         $order->note = $formData['notes'] ?? null;
-        $order->customer_image = $customerImagePath;
         $order->is_lpo = true;
         $order->is_custom_product = $isCustomProduct;
         $order->status = OrderStatusEnum::Pending;
-        $order->is_completed = false;
-
-        // LPO orders don't have store_manager_role
-        $order->store_manager_role = null;
-        // Store column removed - store type determined from products
 
         $order->save();
         return $order;
@@ -4591,8 +4527,6 @@ class OrderController extends Controller
     private function createCustomOrder(
         Request $request,
         array $formData,
-        ?string $customerImagePath,
-        string $saleDate,
         string $expectedDeliveryDate
     ): Order {
         $user = $request->user();
@@ -4604,18 +4538,11 @@ class OrderController extends Controller
         $order->site_manager_id = $user->id;
         $order->site_id = $formData['site_id'];
         $order->priority = $formData['priority'];
-        $order->sale_date = $saleDate;
         $order->expected_delivery_date = $expectedDeliveryDate;
         $order->note = $formData['notes'] ?? null;
-        $order->customer_image = $customerImagePath;
         $order->is_lpo = false;
         $order->is_custom_product = true;
         $order->status = OrderStatusEnum::Pending;
-        $order->is_completed = false;
-
-        // Custom products are assigned to Workshop/Workshop Store Manager
-        $order->store_manager_role = RoleEnum::WorkshopStoreManager->value;
-        // Store column removed - store type determined from products
 
         $order->save();
         return $order;
@@ -4932,8 +4859,6 @@ class OrderController extends Controller
                 $updateData['status'] = OrderStatusEnum::OutOfDelivery->value;
             } elseif ($request->action_type === 'delivered') {
                 $updateData['status'] = OrderStatusEnum::Delivery->value;
-                $updateData['is_completed'] = true;
-                $updateData['completed_at'] = now();
             }
 
             $order->update($updateData);

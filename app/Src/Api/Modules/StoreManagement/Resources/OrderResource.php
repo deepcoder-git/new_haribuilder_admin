@@ -451,7 +451,7 @@ class OrderResource extends JsonResource
             'priority' => $this->priority ?? null,
             'note' => $this->note ?? null,
             'rejected_note' => $this->rejected_note ?? null,
-            'expected_delivery_date' => $this->formatDate($this->expected_delivery_date ?? $this->sale_date),
+            'expected_delivery_date' => $this->formatDate($this->expected_delivery_date),
             'requested_date' => $this->formatDate($this->created_at),
             'created_at' => $this->formatDateTime($this->created_at),
             'updated_at' => $this->formatDateTime($this->updated_at),

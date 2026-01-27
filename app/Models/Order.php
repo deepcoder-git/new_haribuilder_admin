@@ -1,3 +1,4 @@
+
 <?php
 
 declare(strict_types=1);
@@ -18,10 +19,8 @@ class Order extends Model
 
     protected $fillable = [
         'site_manager_id',
-        'store',
         'transport_manager_id',
         'site_id',
-        'sale_date',
         'expected_delivery_date',
         'status',
         'priority',
@@ -38,7 +37,6 @@ class Order extends Model
 
     protected $casts = [
         'status' => OrderStatusEnum::class,
-        'sale_date' => 'date',
         'expected_delivery_date' => 'date',
         'is_lpo' => 'boolean',
         'is_custom_product' => 'boolean',
@@ -162,19 +160,30 @@ class Order extends Model
     }
 
     /**
-     * Get store manager based on store_manager_role
-     * This is a dynamic relationship that finds the manager by role
+     * Get store manager based on product types in order
+     * Store manager role column removed - determine manager from product types
      */
     public function storeManager()
     {
-        if (!$this->store_manager_role) {
-            return null;
+        // Determine store manager based on product types
+        $productStatus = $this->product_status ?? [];
+        
+        // Check for hardware products
+        if (isset($productStatus['hardware']) && $productStatus['hardware'] !== null) {
+            return Moderator::where('role', \App\Utility\Enums\RoleEnum::StoreManager->value)
+                ->where('status', 'active')
+                ->first();
         }
-
-        // Find the first active moderator with the specified role
-        return Moderator::where('role', $this->store_manager_role)
-            ->where('status', 'active')
-            ->first();
+        
+        // Check for workshop or custom products
+        if ((isset($productStatus['workshop']) && $productStatus['workshop'] !== null) ||
+            (isset($productStatus['custom']) && $productStatus['custom'] !== null)) {
+            return Moderator::where('role', \App\Utility\Enums\RoleEnum::WorkshopStoreManager->value)
+                ->where('status', 'active')
+                ->first();
+        }
+        
+        return null;
     }
 
     public function scopePendingOrders($query)
@@ -190,7 +199,7 @@ class Order extends Model
     {
         return [
             'hardware' => 'pending',
-            'warehouse' => 'pending',
+            'workshop' => 'pending',
             'lpo' => [], // Supplier-wise: {supplier_id: status}
             'custom' => 'pending',
         ];
@@ -208,28 +217,21 @@ class Order extends Model
     {
         $productStatus = $this->product_status ?? [];
 
-        // When type is null, fall back based on order-level store or defaults.
+        // When type is null, determine from product_status keys or product types in order
         if ($type === null) {
-            // Prefer mapping using order->store when available
-            if ($this->store instanceof StoreEnum) {
-                $storeValue = $this->store->value;
-            } elseif (!empty($this->store)) {
-                $storeValue = (string) $this->store;
-            } else {
-                $storeValue = null;
+            // Check which product statuses exist in the order
+            // Priority: hardware > workshop > lpo
+            if (isset($productStatus['hardware']) && $productStatus['hardware'] !== null) {
+                return $productStatus['hardware'];
             }
 
-            if ($storeValue === StoreEnum::HardwareStore->value) {
-                return $productStatus['hardware'] ?? null;
+            if (isset($productStatus['workshop']) && $productStatus['workshop'] !== null) {
+                return $productStatus['workshop'];
             }
 
-            if ($storeValue === StoreEnum::WarehouseStore->value) {
-                return $productStatus['warehouse'] ?? null;
-            }
-
-            if ($storeValue === StoreEnum::LPO->value) {
+            if (isset($productStatus['lpo']) && !empty($productStatus['lpo'])) {
                 // For LPO, return supplier-wise statuses or specific supplier status
-                $lpoStatuses = $productStatus['lpo'] ?? [];
+                $lpoStatuses = $productStatus['lpo'];
                 
                 // Handle legacy format where LPO might be a string instead of array
                 if (is_string($lpoStatuses)) {
@@ -247,9 +249,9 @@ class Order extends Model
                 return is_array($lpoStatuses) ? $lpoStatuses : null;
             }
 
-            // If we still don't know, prefer hardware, then warehouse, then lpo
+            // If we still don't know, prefer hardware, then workshop, then lpo
             return $productStatus['hardware']
-                ?? $productStatus['warehouse']
+                ?? $productStatus['workshop']
                 ?? (is_array($productStatus['lpo'] ?? null) ? $productStatus['lpo'] : null)
                 ?? null;
         }
@@ -260,7 +262,7 @@ class Order extends Model
         if ($typeValue === StoreEnum::HardwareStore->value) {
             return $productStatus['hardware'] ?? null;
         } elseif ($typeValue === StoreEnum::WarehouseStore->value) {
-            return $productStatus['warehouse'] ?? null;
+            return $productStatus['workshop'] ?? null;
         } elseif ($typeValue === StoreEnum::LPO->value) {
             // For LPO, return supplier-wise statuses or specific supplier status
             $lpoStatuses = $productStatus['lpo'] ?? [];
@@ -281,8 +283,8 @@ class Order extends Model
             return is_array($lpoStatuses) ? $lpoStatuses : [];
         }
 
-        // For custom products or unknown types, return warehouse status
-        return $productStatus['warehouse'] ?? null;
+        // For custom products or unknown types, return workshop status
+        return $productStatus['workshop'] ?? null;
     }
 
     /**
@@ -300,7 +302,7 @@ class Order extends Model
             }
             $statuses['lpo'][(string)$supplierId] = $status;
         } else {
-            // Hardware, warehouse, custom: simple string status
+            // Hardware, workshop, custom: simple string status
             $statuses[$type] = $status;
         }
         
@@ -324,7 +326,7 @@ class Order extends Model
     {
         return [
             'hardware' => null,
-            'warehouse' => null,
+            'workshop' => null,
             'lpo' => [], // Supplier-wise: {supplier_id: note}
             'custom' => null,
         ];
@@ -334,7 +336,7 @@ class Order extends Model
      * Get rejection note for a specific product type.
      * For LPO, can optionally get note for a specific supplier.
      * 
-     * @param string $type The product type (hardware, warehouse, lpo, custom)
+     * @param string $type The product type (hardware, workshop, lpo, custom)
      * @param int|null $supplierId For LPO products, get note for specific supplier
      * @return string|null Returns the rejection note or null if not found
      */
@@ -350,7 +352,7 @@ class Order extends Model
             }
             return null;
         } else {
-            // Hardware, warehouse, custom: simple string note
+            // Hardware, workshop, custom: simple string note
             return $rejectionNotes[$type] ?? null;
         }
     }
@@ -359,7 +361,7 @@ class Order extends Model
      * Set rejection note for a specific product type
      * For LPO, set note for a specific supplier
      * 
-     * @param string $type The product type (hardware, warehouse, lpo, custom)
+     * @param string $type The product type (hardware, workshop, lpo, custom)
      * @param string|null $note The rejection note (null to clear)
      * @param int|null $supplierId For LPO products, set note for specific supplier
      */
@@ -379,7 +381,7 @@ class Order extends Model
                 $notes['lpo'][(string)$supplierId] = trim($note);
             }
         } else {
-            // Hardware, warehouse, custom: simple string note
+            // Hardware, workshop, custom: simple string note
             if ($note === null || trim($note) === '') {
                 $notes[$type] = null;
             } else {
@@ -400,12 +402,12 @@ class Order extends Model
     }
 
     /**
-     * Calculate and update order status based on hardware, warehouse, and LPO product statuses.
+     * Calculate and update order status based on hardware, workshop, and LPO product statuses.
      *
      * Uses product_status JSON column. If a product type is null, it doesn't exist in the order.
      *
      * Rules (per user spec):
-     * - Single product type (Hardware / Warehouse / LPO):
+     * - Single product type (Hardware / Workshop / LPO):
      *   → Parent order status = that type's status directly (mapped to OrderStatusEnum)
      *
      * - Multiple product types:
@@ -439,16 +441,16 @@ class Order extends Model
         $hardware = isset($productStatus['hardware']) && $productStatus['hardware'] !== null && $productStatus['hardware'] !== '' && $productStatus['hardware'] !== 'null'
             ? $productStatus['hardware']
             : null;
-        $warehouse = isset($productStatus['warehouse']) && $productStatus['warehouse'] !== null && $productStatus['warehouse'] !== '' && $productStatus['warehouse'] !== 'null'
-            ? $productStatus['warehouse']
+        $workshop = isset($productStatus['workshop']) && $productStatus['workshop'] !== null && $productStatus['workshop'] !== '' && $productStatus['workshop'] !== 'null'
+            ? $productStatus['workshop']
             : null;
         $custom = isset($productStatus['custom']) && $productStatus['custom'] !== null && $productStatus['custom'] !== '' && $productStatus['custom'] !== 'null'
             ? $productStatus['custom']
             : null;
 
-        // Treat custom products as warehouse for status calculation when warehouse status is missing
-        if ($warehouse === null && $custom !== null) {
-            $warehouse = $custom;
+        // Treat custom products as workshop for status calculation when workshop status is missing
+        if ($workshop === null && $custom !== null) {
+            $workshop = $custom;
         }
         
         // LPO is now supplier-wise (object), calculate combined status
@@ -474,7 +476,7 @@ class Order extends Model
         // Filter out null values to get existing product types
         $existingTypes = array_filter([
             'hardware' => $hardware,
-            'warehouse' => $warehouse,
+            'workshop' => $workshop,
             'lpo' => $lpo,
         ], fn ($value) => $value !== null);
         
@@ -603,4 +605,3 @@ class Order extends Model
     }
 
 }
-

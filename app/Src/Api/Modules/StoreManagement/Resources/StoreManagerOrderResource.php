@@ -146,13 +146,6 @@ class StoreManagerOrderResource extends JsonResource
         // Use the current order directly (no parent/child relationships)
         $rootOrder = $currentOrder;
         
-        $customerImageUrl = null;
-        if ($rootOrder->customer_image) {
-            $customerImageUrl = Storage::disk('public')->exists($rootOrder->customer_image) 
-                ? url(Storage::url($rootOrder->customer_image))
-                : url('storage/' . $rootOrder->customer_image);
-        }
-        
         return [
             'id' => $rootOrder->id,
             'order_slug' => 'ORD'.$rootOrder->id,
@@ -165,10 +158,10 @@ class StoreManagerOrderResource extends JsonResource
             'priority' => $rootOrder->priority ?? null,
             'note' => $rootOrder->note ?? null,
             'rejected_note' => $rootOrder->rejected_note ?? null,
-            'customer_image' => $customerImageUrl,
+            'customer_image' => null,
             'driver_name' => $rootOrder->driver_name ?? null,
             'vehicle_number' => $rootOrder->vehicle_number ?? null,
-            'expected_delivery_date' => $this->formatDate($rootOrder->expected_delivery_date ?? $rootOrder->sale_date),
+            'expected_delivery_date' => $this->formatDate($rootOrder->expected_delivery_date),
             'requested_date' => $this->formatDate($rootOrder->created_at),
             'created_at' => $this->formatDateTime($rootOrder->created_at),
             'updated_at' => $this->formatDateTime($rootOrder->updated_at),

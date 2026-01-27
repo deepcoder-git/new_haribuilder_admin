@@ -754,14 +754,6 @@ class OrderResource extends JsonResource
         // Regular products that remain should show their quantities from order_products
         // Custom products and their connected products already have correct aggregated quantities
         
-        // Format customer image
-        $customerImageUrl = null;
-        if ($order->customer_image) {
-            $customerImageUrl = Storage::disk('public')->exists($order->customer_image)
-                ? url(Storage::url($order->customer_image))
-                : url('storage/' . $order->customer_image);
-        }
-
         // Get LPO suppliers information
         $lpoSuppliers = collect();
         $lpoProductStatus = $order->product_status['lpo'] ?? [];
@@ -794,10 +786,10 @@ class OrderResource extends JsonResource
             'priority' => $order->priority ?? null,
             'note' => $order->note ?? null,
             'rejected_note' => $order->rejected_note ?? null,
-            'customer_image' => $customerImageUrl,
+            'customer_image' => null,
             'driver_name' => $order->driver_name ?? null,
             'vehicle_number' => $order->vehicle_number ?? null,
-            'expected_delivery_date' => $this->formatDate($order->expected_delivery_date ?? $order->sale_date),
+            'expected_delivery_date' => $this->formatDate($order->expected_delivery_date),
             'requested_date' => $this->formatDate($order->created_at),
             'created_at' => $this->formatDate($order->created_at),
             'updated_at' => $this->formatDate($order->updated_at),
