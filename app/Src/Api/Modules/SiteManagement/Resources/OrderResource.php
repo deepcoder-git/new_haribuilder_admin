@@ -714,8 +714,8 @@ class OrderResource extends JsonResource
             } else {
                 // Fallback when display product no longer exists
                 $stockStatus = [
-                    'out_of_stock' => false,
-                    'low_stock' => false,
+                    'out_of_stock' => 0,
+                    'low_stock' => 0,
                 ];
                 $availableQty = 0;
             }
