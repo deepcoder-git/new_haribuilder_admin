@@ -332,7 +332,7 @@
                                             </td>
                                             @if($isFirstWarehouse)
                                             <td rowspan="{{ $warehouseRowCount }}" style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none; border-left: 2px solid #0d6efd;">
-                                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Warehouse</span>
+                                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">workshop</span>
                                             </td>
                                             @php $isFirstWarehouse = false; @endphp
                                             @endif
@@ -417,7 +417,7 @@
                             </td>
                             @if($isFirstWarehouse)
                             <td rowspan="{{ $warehouseRowCount }}" style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none; border-left: 2px solid #0d6efd;">
-                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Warehouse</span>
+                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Workshop</span>
                             </td>
                             @php $isFirstWarehouse = false; @endphp
                             @endif
