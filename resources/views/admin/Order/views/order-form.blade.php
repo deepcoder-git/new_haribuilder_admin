@@ -482,7 +482,9 @@
                                         $productStatusLabels = $allStatusLabels;
                                     }
                                     // Handle LPO which is an array (supplier-wise), other types are strings
-                                    $rawStatus = $productStatuses[$groupType] ?? 'pending';
+                                    // Map 'warehouse' to 'workshop' for productStatuses lookup (database uses 'workshop')
+                                    $statusKey = $groupType === 'warehouse' ? 'workshop' : $groupType;
+                                    $rawStatus = $productStatuses[$statusKey] ?? 'pending';
                                     if ($groupType === 'lpo' && is_array($rawStatus)) {
                                         // For LPO, calculate combined status from all supplier statuses
                                         $uniqueStatuses = array_unique(array_values($rawStatus));

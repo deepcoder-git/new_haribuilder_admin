@@ -1881,6 +1881,11 @@ class OrderForm extends Component
             return;
         }
         
+        // Map 'warehouse' to 'workshop' for internal storage (view uses 'warehouse' but data uses 'workshop')
+        if ($type === 'warehouse') {
+            $type = 'workshop';
+        }
+        
         // Validate product type
         if (!in_array($type, ['hardware', 'workshop', 'lpo', 'custom'])) {
             return;
@@ -5873,7 +5878,7 @@ class OrderForm extends Component
 
         $grouped = [
             'hardware' => [],
-            'workshop' => [],
+            'warehouse' => [], // Use 'warehouse' to match view expectations (view uses 'warehouse' but data uses 'workshop')
             'lpo' => [],
         ];
 
@@ -5882,11 +5887,15 @@ class OrderForm extends Component
             
             // Determine type based on product or custom
             if (($product['is_custom'] ?? 0) == 1) {
-                $productType = 'workshop'; // Custom products go to workshop
+                $productType = 'warehouse'; // Custom products go to warehouse/workshop section
             } elseif (!empty($product['product_id'])) {
                 $productModel = Product::find($product['product_id']);
                 if ($productModel) {
                     $productType = $this->getProductType($productModel);
+                    // Map 'workshop' to 'warehouse' for view compatibility
+                    if ($productType === 'workshop') {
+                        $productType = 'warehouse';
+                    }
                 }
             }
             
