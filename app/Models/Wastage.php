@@ -46,7 +46,7 @@ class Wastage extends Model
     public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'wastage_products')
-                    ->withPivot('quantity', 'wastage_qty', 'unit_type')
+                    ->withPivot('quantity', 'wastage_qty', 'unit_type', 'adjust_stock')
                     ->withTimestamps();
     }
 }

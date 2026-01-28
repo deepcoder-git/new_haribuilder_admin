@@ -1,0 +1,222 @@
+{
+  "info": {
+    "name": "New Haribuilder - Wastage & Return APIs",
+    "_postman_id": "e7e3c7b4-0000-0000-0000-wastage-return",
+    "description": "Wastage and Return APIs for New Haribuilder Admin.\n\nNOTE: Update {{base_url}} and endpoint paths if your routes differ.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Wastage",
+      "item": [
+        {
+          "name": "List Wastages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/wastages?per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wastages"],
+              "query": [
+                { "key": "per_page", "value": "10" },
+                { "key": "type", "value": "", "disabled": true },
+                { "key": "manager_id", "value": "", "disabled": true },
+                { "key": "site_id", "value": "", "disabled": true },
+                { "key": "order_id", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Wastage",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"site_wastage\",\n  \"manager_id\": 1,\n  \"site_id\": 1,\n  \"order_id\": 10,\n  \"date\": \"2026-01-28\",\n  \"reason\": \"Damaged materials\",\n  \"products\": [\n    {\n      \"product_id\": 5,\n      \"quantity\": 10,\n      \"wastage_qty\": 2,\n      \"unit_type\": \"pcs\",\n      \"adjust_stock\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/wastages",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wastages"]
+            }
+          }
+        },
+        {
+          "name": "Get Wastage by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/wastages/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wastages", ":id"],
+              "variable": [
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Wastage",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"site_wastage\",\n  \"manager_id\": 1,\n  \"site_id\": 1,\n  \"order_id\": 10,\n  \"date\": \"2026-01-29\",\n  \"reason\": \"Updated reason\",\n  \"products\": [\n    {\n      \"product_id\": 5,\n      \"quantity\": 10,\n      \"wastage_qty\": 3,\n      \"unit_type\": \"pcs\",\n      \"adjust_stock\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/wastages/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wastages", ":id"],
+              "variable": [
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Wastage",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/wastages/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "wastages", ":id"],
+              "variable": [
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Return",
+      "item": [
+        {
+          "name": "List Returns",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/returns?per_page=10",
+              "host": ["{{base_url}}"],
+              "path": ["api", "returns"],
+              "query": [
+                { "key": "per_page", "value": "10" },
+                { "key": "type", "value": "", "disabled": true },
+                { "key": "manager_id", "value": "", "disabled": true },
+                { "key": "site_id", "value": "", "disabled": true },
+                { "key": "order_id", "value": "", "disabled": true },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Return (items payload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"site_return\",\n  \"manager_id\": 1,\n  \"site_id\": 1,\n  \"order_id\": 10,\n  \"date\": \"2026-01-28\",\n  \"status\": \"pending\",\n  \"reason\": \"Customer return\",\n  \"items\": [\n    {\n      \"product_id\": 5,\n      \"ordered_quantity\": 10,\n      \"return_quantity\": 2,\n      \"unit_type\": \"pcs\",\n      \"adjust_stock\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/returns",
+              "host": ["{{base_url}}"],
+              "path": ["api", "returns"]
+            }
+          }
+        },
+        {
+          "name": "Create Return (wastage-style products payload)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"site_return\",\n  \"manager_id\": 1,\n  \"site_id\": 1,\n  \"order_id\": 10,\n  \"date\": \"2026-01-28\",\n  \"status\": \"pending\",\n  \"reason\": \"Customer return\",\n  \"products\": [\n    {\n      \"product_id\": 5,\n      \"quantity\": 10,\n      \"wastage_qty\": 2,\n      \"unit_type\": \"pcs\",\n      \"adjust_stock\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/returns",
+              "host": ["{{base_url}}"],
+              "path": ["api", "returns"]
+            }
+          }
+        },
+        {
+          "name": "Get Return by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/returns/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "returns", ":id"],
+              "variable": [
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Return (items payload)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"site_return\",\n  \"manager_id\": 1,\n  \"site_id\": 1,\n  \"order_id\": 10,\n  \"date\": \"2026-01-29\",\n  \"status\": \"approved\",\n  \"reason\": \"Updated reason\",\n  \"items\": [\n    {\n      \"product_id\": 5,\n      \"ordered_quantity\": 10,\n      \"return_quantity\": 3,\n      \"unit_type\": \"pcs\",\n      \"adjust_stock\": true\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/returns/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "returns", ":id"],
+              "variable": [
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Return",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/returns/:id",
+              "host": ["{{base_url}}"],
+              "path": ["api", "returns", ":id"],
+              "variable": [
+                { "key": "id", "value": "1" }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000"
+    }
+  ]
+}
+

@@ -58,6 +58,7 @@ class WastageController extends Controller
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.wastage_qty' => 'required|integer|min:1',
             'products.*.unit_type' => 'nullable|string',
+            'products.*.adjust_stock' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -122,6 +123,7 @@ class WastageController extends Controller
             'products.*.quantity' => 'required|integer|min:1',
             'products.*.wastage_qty' => 'required|integer|min:1',
             'products.*.unit_type' => 'nullable|string',
+            'products.*.adjust_stock' => 'sometimes|boolean',
         ]);
 
         if ($validator->fails()) {

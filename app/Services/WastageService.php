@@ -28,8 +28,10 @@ class WastageService extends BaseCrudService
             'reason' => 'nullable|string|max:1000',
             'products' => 'required|array|min:1',
             'products.*.product_id' => 'required|exists:products,id',
+            'products.*.quantity' => 'required|integer|min:1',
             'products.*.wastage_qty' => 'required|integer|min:1',
             'products.*.unit_type' => 'nullable|string|max:255',
+            'products.*.adjust_stock' => 'sometimes|boolean',
         ];
     }
 
