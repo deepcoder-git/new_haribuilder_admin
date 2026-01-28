@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Carbon\Carbon;
+use Illuminate\Validation\Rules\In;
 
 class OrderForm extends Component
 {
@@ -1881,6 +1882,9 @@ class OrderForm extends Component
             return;
         }
         
+        // Store original type for view/event dispatch (view uses 'warehouse' but data uses 'workshop')
+        $originalType = $type;
+        
         // Map 'warehouse' to 'workshop' for internal storage (view uses 'warehouse' but data uses 'workshop')
         if ($type === 'warehouse') {
             $type = 'workshop';
@@ -1889,6 +1893,11 @@ class OrderForm extends Component
         // Validate product type
         if (!in_array($type, ['hardware', 'workshop', 'lpo', 'custom'])) {
             return;
+        }
+        
+        // Ensure productStatuses array has the key initialized
+        if (!isset($this->productStatuses[$type])) {
+            $this->productStatuses[$type] = 'pending';
         }
         
         // Validate status (no separate 'completed' status anymore)
@@ -1912,8 +1921,8 @@ class OrderForm extends Component
             } catch (\Exception $e) {
                 $this->productStatuses[$type] = 'pending';
             }
-            // Dispatch browser event to revert select value
-            $this->dispatch('revert-product-status-select', type: $type, status: $this->productStatuses[$type]);
+            // Dispatch browser event to revert select value (use originalType for view compatibility)
+            $this->dispatch('revert-product-status-select', type: $originalType, status: $this->productStatuses[$type]);
             return;
         }
         
@@ -2033,7 +2042,7 @@ class OrderForm extends Component
 
             // Revert the dropdown back until user clicks Save in the modal
             $this->productStatuses[$type] = $currentStatus;
-            $this->dispatch('revert-product-status-select', type: $type, status: $currentStatus);
+            $this->dispatch('revert-product-status-select', type: $originalType, status: $currentStatus);
             return;
         }
         
