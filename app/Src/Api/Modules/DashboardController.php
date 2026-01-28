@@ -61,7 +61,7 @@ class DashboardController extends Controller
 
                 // Hardware Store Manager: orders with hardware products (non-LPO)
                 $pending_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'pending')
+                    ->where('status', 'pending')
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::HardwareStore->value);
                     })
@@ -75,7 +75,7 @@ class DashboardController extends Controller
                     ->count();
 
                 $return_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'return')
+                    ->where('status', 'return')
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::HardwareStore->value);
                     })
@@ -107,35 +107,36 @@ class DashboardController extends Controller
 
                 // Workshop Store Manager: warehouse/custom orders (non-LPO)
                 $pending_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'pending')
+                    ->where('status', 'pending')
+                    // ->where('status', OrderStatusEnum::Pending->value)
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                     })
                     ->count();
 
                 $delayed_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'delayed')
+                    ->where('status', 'delayed')
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                     })
                     ->count();
                     
                 $approved_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'approved')
+                    ->where('status', 'approved')
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                     })
                     ->count();
 
                 $delivered_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'delivered')
+                    ->where('status', 'delivered')
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                     })
                     ->count();
                     
                 $rejected_orders = Order::where('is_lpo', 0)
-                    ->where('delivery_status', 'rejected')
+                    ->where('status', 'rejected')
                     ->whereHas('products', function ($q) {
                         $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                     })
@@ -153,20 +154,20 @@ class DashboardController extends Controller
                 $transportManagerId = $request->user()->id;
                 
                 $pending_orders = Order::where('transport_manager_id', $transportManagerId)
-                    ->where('delivery_status', 'pending')
+                    ->where('status', 'pending')
                     ->count();
                 
                 $in_transit_orders = Order::where('transport_manager_id', $transportManagerId)
-                    ->where('delivery_status', 'in_transit')
+                    ->where('status', 'in_transit')
                     ->count();
                 
                 $delayed_orders = Order::where('transport_manager_id', $transportManagerId)
                     ->where('expected_delivery_date', '<', now())
-                    ->whereIn('delivery_status', ['approved', 'in_transit'])
+                    ->whereIn('status', ['approved', 'in_transit'])
                     ->count();
                 
                 $completed_orders = Order::where('transport_manager_id', $transportManagerId)
-                    ->where('delivery_status', 'delivered')
+                    ->where('status', 'delivered')
                     ->count();
 
                 $dashboard_data = [

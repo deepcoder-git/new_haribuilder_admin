@@ -438,13 +438,13 @@
                     <label class="form-label mb-0 fw-semibold" style="font-size: 1.0625rem; color: #1f2937; letter-spacing: -0.01em;">
                         Products & Materials <span class="text-danger">*</span>
                     </label>
-                    {{-- <button type="button" 
+                    <button type="button" 
                             wire:click="addCustomProductRow"
                             class="btn btn-sm btn-outline-primary"
                             style="display: flex; align-items: center; gap: 0.5rem;">
                         <i class="fa-solid fa-plus"></i>
                         <span>Add Custom Product</span>
-                    </button> --}}
+                    </button>
                 </div>
                 
                 @if($isEditMode && !empty($groupedProducts))
@@ -2270,7 +2270,7 @@
                                                     <td style="padding: 0.75rem;">
                                                         <div class="d-flex align-items-center gap-1">
                                                             <button type="button" 
-                                                                    wire:click="updateCustomPopupProductQuantity({{ $popupIndex }}, {{ ($popupProduct['quantity'] ?? 1) - 1 }})"
+                                                                    wire:click="updateCustomPopupProductQuantity({{ $popupIndex }}, {{ (int)($popupProduct['quantity'] ?? 1) - 1 }})"
                                                                     class="btn btn-sm btn-light"
                                                                     style="width: 30px; height: 30px; padding: 0;">
                                                                 <i class="fa-solid fa-minus" style="font-size: 0.75rem;"></i>
@@ -2281,7 +2281,7 @@
                                                                    class="form-control form-control-sm"
                                                                    style="width: 60px; text-align: center; padding: 0.25rem;">
                                                             <button type="button" 
-                                                                    wire:click="updateCustomPopupProductQuantity({{ $popupIndex }}, {{ ($popupProduct['quantity'] ?? 1) + 1 }})"
+                                                                    wire:click="updateCustomPopupProductQuantity({{ $popupIndex }}, {{ (int)($popupProduct['quantity'] ?? 1) + 1 }})"
                                                                     class="btn btn-sm btn-light"
                                                                     style="width: 30px; height: 30px; padding: 0;">
                                                                 <i class="fa-solid fa-plus" style="font-size: 0.75rem;"></i>

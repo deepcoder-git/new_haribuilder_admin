@@ -3789,7 +3789,15 @@ class OrderForm extends Component
                         }
                     }
 
-                    $customQty = 1;
+                    // Use total quantity from product_details if available; otherwise default to 1
+                    $details = is_array($customProduct->product_details ?? null)
+                        ? $customProduct->product_details
+                        : [];
+                    $customQty = isset($details['quantity'])
+                        ? (int) $details['quantity']
+                        : 1;
+                    $customQty = max(1, $customQty);
+
                     foreach ($productIds as $productId) {
                         $pid = (int) $productId;
                         if ($pid <= 0) {
@@ -3948,9 +3956,16 @@ class OrderForm extends Component
                             $productIds = $productIds ? [$productIds] : [];
                         }
                     }
-                    
-                    // Custom products use quantity 1 by default, but check if there's a quantity field
-                    $customQty = 1;
+
+                    // Use total quantity from product_details if available; otherwise default to 1
+                    $details = is_array($customProduct->product_details ?? null)
+                        ? $customProduct->product_details
+                        : [];
+                    $customQty = isset($details['quantity'])
+                        ? (int) $details['quantity']
+                        : 1;
+                    $customQty = max(1, $customQty);
+
                     foreach ($productIds as $productId) {
                         if (isset($productsToDeduct[$productId])) {
                             // If product already exists, increment quantity
@@ -4652,17 +4667,34 @@ class OrderForm extends Component
         // Initialize popup products from existing product_ids
         $existingProductIds = $this->orderProducts[$index]['product_ids'] ?? [];
         $this->customProductPopupProducts = [];
-        
+
+        // Try to load overall quantity from existing custom product details (for single connected product)
+        $overallQuantity = null;
+        $customProductId = $this->orderProducts[$index]['custom_product_id'] ?? null;
+        if ($customProductId) {
+            $existingCustomProduct = OrderCustomProduct::find($customProductId);
+            if ($existingCustomProduct && is_array($existingCustomProduct->product_details)) {
+                $details = $existingCustomProduct->product_details;
+                if (isset($details['quantity']) && (int)$details['quantity'] > 0) {
+                    $overallQuantity = (int)$details['quantity'];
+                }
+            }
+        }
+
         if (!empty($existingProductIds) && is_array($existingProductIds)) {
+            $isSingleProduct = count($existingProductIds) === 1;
             foreach ($existingProductIds as $productId) {
                 $product = Product::with('category')->find($productId);
                 if ($product) {
+                    $quantity = ($isSingleProduct && $overallQuantity !== null)
+                        ? $overallQuantity
+                        : 1;
                     $this->customProductPopupProducts[] = [
                         'id' => $product->id,
                         'name' => $product->product_name,
                         'category' => $product->category->name ?? '',
                         'unit' => $product->unit_type ?? '',
-                        'quantity' => 1, // Default quantity
+                        'quantity' => $quantity,
                     ];
                 }
             }
@@ -4670,7 +4702,6 @@ class OrderForm extends Component
         
         // Load materials from existing order custom product if it exists
         $this->customProductPopupMaterials = [];
-        $customProductId = $this->orderProducts[$index]['custom_product_id'] ?? null;
         
         // If custom product ID exists, load materials from it
         if ($customProductId) {
@@ -5596,6 +5627,11 @@ class OrderForm extends Component
                         'product_ids_to_save' => $productIdsToSave,
                         'before_save_product_ids' => $customProduct->product_ids,
                     ]);
+
+                    // Capture old quantity before changes (used for stock adjustments on quantity change)
+                    $productDetails = $customProduct->product_details ?? [];
+                    $oldQuantity = (int)($productDetails['quantity'] ?? 0);
+                    $newQuantity = $oldQuantity;
                     
                     // Prepare materials data for product_details
                     $materialsData = [];
@@ -5643,19 +5679,35 @@ class OrderForm extends Component
                         }
                     }
                     
-                    // Update product_details with materials
-                    $productDetails = $customProduct->product_details ?? [];
+                    // Update product_details with materials (reusing $productDetails from above)
                     if (!empty($materialsData)) {
                         $productDetails['materials'] = $materialsData;
                         // Recalculate total quantity from materials
                         $totalQuantity = array_sum(array_column($materialsData, 'calculated_quantity'));
                         $productDetails['quantity'] = $totalQuantity;
+                        $newQuantity = (int)$totalQuantity;
                     } else {
-                        // Clear materials if empty
+                        // No materials configured in popup.
+                        // In this case, derive quantity from connected products popup quantities.
                         unset($productDetails['materials']);
-                        // Keep existing quantity or set to 0
-                        if (!isset($productDetails['quantity'])) {
+
+                        $totalQuantityFromProducts = 0;
+                        if (!empty($this->customProductPopupProducts) && is_array($this->customProductPopupProducts)) {
+                            foreach ($this->customProductPopupProducts as $popupProduct) {
+                                $qty = isset($popupProduct['quantity']) ? (int)$popupProduct['quantity'] : 0;
+                                if ($qty > 0) {
+                                    $totalQuantityFromProducts += $qty;
+                                }
+                            }
+                        }
+
+                        if ($totalQuantityFromProducts > 0) {
+                            $productDetails['quantity'] = $totalQuantityFromProducts;
+                            $newQuantity = (int)$totalQuantityFromProducts;
+                        } elseif (!isset($productDetails['quantity'])) {
+                            // If nothing else is set, default to 0
                             $productDetails['quantity'] = 0;
+                            $newQuantity = 0;
                         }
                     }
                     
@@ -5689,6 +5741,35 @@ class OrderForm extends Component
                                 'got_from_raw' => $rawProductIds,
                             ]);
                             throw new \Exception('product_ids were not saved correctly - expected: ' . json_encode($productIdsToSave) . ', got: ' . json_encode($savedProductIds));
+                        }
+                    }
+
+                    // If quantity changed while workshop products are already in a deducted state,
+                    // adjust stock for the difference immediately.
+                    if ($this->isEditMode && $this->editingId && $newQuantity !== $oldQuantity && !empty($productIdsToSave)) {
+                        $orderForQtyAdjust = Order::find($this->editingId);
+                        if ($orderForQtyAdjust) {
+                            $productStatus = is_array($orderForQtyAdjust->product_status ?? null)
+                                ? ($orderForQtyAdjust->product_status['workshop'] ?? null)
+                                : null;
+
+                            // Only adjust if workshop status is already in a state where stock should be deducted.
+                            if (in_array($productStatus, ['outfordelivery', 'in_transit', 'delivered'], true)) {
+                                $oldProductsData = [];
+                                $newProductsData = [];
+                                foreach ($productIdsToSave as $pid) {
+                                    $pid = (int)$pid;
+                                    if ($pid <= 0) {
+                                        continue;
+                                    }
+                                    $oldProductsData[$pid] = ['quantity' => $oldQuantity];
+                                    $newProductsData[$pid] = ['quantity' => $newQuantity];
+                                }
+
+                                if (!empty($oldProductsData) && !empty($newProductsData)) {
+                                    $this->adjustStockForProductChanges($orderForQtyAdjust, $oldProductsData, $newProductsData, null);
+                                }
+                            }
                         }
                     }
                     
