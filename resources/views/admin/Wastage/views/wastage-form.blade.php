@@ -9,7 +9,7 @@
         </div>
         <div class="card-body px-4 py-4">
             <div class="row g-3 mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Type <span class="text-danger">*</span>
                     </label>
@@ -27,7 +27,7 @@
                         </div> 
                     @enderror
                 </div>
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Site Name
                     </label>
@@ -46,9 +46,7 @@
                         </div> 
                     @enderror
                 </div>
-            </div>
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Manager Name <span class="text-danger">*</span>
                     </label>
@@ -73,7 +71,29 @@
                         </div> 
                     @enderror
                 </div>
-                <div class="col-md-6">
+            </div>
+            <div class="row g-3 mb-3">
+                <div class="col-md-3">
+                    <label class="form-label fw-semibold text-gray-700 mb-2">
+                        Order ID
+                    </label>
+                    <select wire:model.live="order_id"
+                            class="form-select form-select-solid @error('order_id') is-invalid @enderror"
+                            style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;">
+                        <option value="">Select Order</option>
+                        @foreach($orders as $order)
+                            <option value="{{ $order->id }}">ORD{{ $order->id }}</option>
+                        @endforeach
+                        <option value="other">Other</option>
+                    </select>
+                    @error('order_id') 
+                        <div class="text-danger small mt-1 d-flex align-items-center">
+                            <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>
+                            {{ $message }}
+                        </div> 
+                    @enderror
+                </div>
+                <div class="col-md-3">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Date <span class="text-danger">*</span>
                     </label>
@@ -82,27 +102,6 @@
                            class="form-control form-control-solid @error('date') is-invalid @enderror"
                            style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;"/>
                     @error('date') 
-                        <div class="text-danger small mt-1 d-flex align-items-center">
-                            <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>
-                            {{ $message }}
-                        </div> 
-                    @enderror
-                </div>
-            </div>
-            <div class="row g-3 mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-semibold text-gray-700 mb-2">
-                        Order ID
-                    </label>
-                    <select wire:model.blur="order_id"
-                            class="form-select form-select-solid @error('order_id') is-invalid @enderror"
-                            style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;">
-                        <option value="">Select Order</option>
-                        @foreach($orders as $order)
-                            <option value="{{ $order->id }}">ORD{{ $order->id }}</option>
-                        @endforeach
-                    </select>
-                    @error('order_id') 
                         <div class="text-danger small mt-1 d-flex align-items-center">
                             <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>
                             {{ $message }}
@@ -133,12 +132,14 @@
                         <label class="form-label fw-semibold text-gray-700 mb-0">
                             Products <span class="text-danger">*</span>
                         </label>
-                        <button type="button" 
-                                wire:click="addProductRow"
-                                class="btn btn-sm btn-primary"
-                                style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
-                            <i class="fa-solid fa-plus me-1"></i>Add Product
-                        </button>
+                        @if($order_id === 'other')
+                            <button type="button" 
+                                    wire:click="addProductRow"
+                                    class="btn btn-sm btn-primary"
+                                    style="padding: 0.375rem 0.75rem; font-size: 0.875rem;">
+                                <i class="fa-solid fa-plus me-1"></i>Add Product
+                            </button>
+                        @endif
                     </div>
                     
                     <div class="table-responsive" style="border: 1px solid #e5e7eb; border-radius: 0.5rem; overflow: hidden;">

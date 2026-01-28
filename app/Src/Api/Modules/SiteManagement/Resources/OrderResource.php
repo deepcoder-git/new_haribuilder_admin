@@ -237,14 +237,15 @@ class OrderResource extends JsonResource
             // Process connected products from product_ids
             if (!empty($productIds)) {
                 foreach ($productIds as $productId) {
-                    $connectedProduct = Product::with('category', 'productImages')->find($productId);
+                    // Load the connected product model
+                    $connectedProductModel = Product::with('category', 'productImages')->find($productId);
                     
-                    if ($connectedProduct) {
+                    if ($connectedProductModel) {
                         $connectedImageUrls = [];
                         
                         // Get connected product images
-                        if ($connectedProduct->relationLoaded('productImages') && $connectedProduct->productImages && $connectedProduct->productImages->isNotEmpty()) {
-                            foreach ($connectedProduct->productImages->sortBy('order') as $productImage) {
+                        if ($connectedProductModel->relationLoaded('productImages') && $connectedProductModel->productImages && $connectedProductModel->productImages->isNotEmpty()) {
+                            foreach ($connectedProductModel->productImages->sortBy('order') as $productImage) {
                                 $imagePath = $productImage->image_url;
                                 
                                 if (!empty($imagePath)) {
@@ -258,8 +259,8 @@ class OrderResource extends JsonResource
                         }
                         
                         // Fallback to product image if no product images
-                        if (empty($connectedImageUrls) && $connectedProduct->image) {
-                            $connectedImageUrls[] = url(Storage::url($connectedProduct->image));
+                        if (empty($connectedImageUrls) && $connectedProductModel->image) {
+                            $connectedImageUrls[] = url(Storage::url($connectedProductModel->image));
                         }
                         
                         // Get quantity from custom product's connected_products array
@@ -270,9 +271,9 @@ class OrderResource extends JsonResource
                         $connectedProducts = $productDetails['connected_products'] ?? [];
                         if (is_array($connectedProducts) && !empty($connectedProducts)) {
                             // Find this product in connected_products array
-                            foreach ($connectedProducts as $connectedProduct) {
-                                if (isset($connectedProduct['product_id']) && (int) $connectedProduct['product_id'] === $productId) {
-                                    $quantity = (int) ($connectedProduct['quantity'] ?? 0);
+                            foreach ($connectedProducts as $connectedProductItem) {
+                                if (isset($connectedProductItem['product_id']) && (int) $connectedProductItem['product_id'] === $productId) {
+                                    $quantity = (int) ($connectedProductItem['quantity'] ?? 0);
                                     break;
                                 }
                             }
@@ -298,17 +299,26 @@ class OrderResource extends JsonResource
                             }
                         }
                         
-                        $productStatus = $order->getProductStatus($connectedProduct->store) ?? 'pending';
+                        // Determine store enum safely for the connected product
+                        $connectedProductStore = $connectedProductModel->store ?? null;
+                        $connectedProductStoreEnum = null;
+                        if ($connectedProductStore instanceof StoreEnum) {
+                            $connectedProductStoreEnum = $connectedProductStore;
+                        } elseif ($connectedProductStore !== null && (is_string($connectedProductStore) || is_int($connectedProductStore))) {
+                            $connectedProductStoreEnum = StoreEnum::tryFrom((string)$connectedProductStore);
+                        }
+
+                        $productStatus = $order->getProductStatus($connectedProductStoreEnum?->value ?? $connectedProductStore) ?? 'pending';
                         
                         // Get materials connected to this product from product_materials table
                         $productMaterials = collect();
                         
                         // Load materials relationship if not already loaded
-                        if (!$connectedProduct->relationLoaded('materials')) {
-                            $connectedProduct->load('materials.category', 'materials.productImages');
+                        if (!$connectedProductModel->relationLoaded('materials')) {
+                            $connectedProductModel->load('materials.category', 'materials.productImages');
                         }
                         
-                        foreach ($connectedProduct->materials as $material) {
+                        foreach ($connectedProductModel->materials as $material) {
                             $materialImageUrls = [];
                             
                             // Get material images
@@ -445,22 +455,22 @@ class OrderResource extends JsonResource
                         $allMaterials = $productMaterials->merge(collect($materialsArray))->values();
 
                         // Calculate available quantity and out of stock status
-                        $availableQty = (int) $connectedProduct->total_stock_quantity;
+                        $availableQty = (int) $connectedProductModel->total_stock_quantity;
                         $outOfStock = $availableQty <= 0 ? 1 : 0;
                         
                         $connectedProductData = [
-                            'product_id' => $connectedProduct->id,
-                            'product_name' => $connectedProduct->product_name,
-                            'type_name' => $connectedProduct->store?->getName(),
+                            'product_id' => $connectedProductModel->id,
+                            'product_name' => $connectedProductModel->product_name,
+                            'type_name' => $connectedProductStoreEnum?->getName(),
                             'product_status' => $productStatus,
                             'quantity' => $quantity,
-                            'unit_type' => $connectedProduct->unit_type ?? null,
-                            'category' => $connectedProduct->category->name ?? null,
+                            'unit_type' => $connectedProductModel->unit_type ?? null,
+                            'category' => $connectedProductModel->category->name ?? null,
                             'materials' => $allMaterials,
                             'is_custom' => 0,
                             'custom_images' => $connectedImageUrls,
                             'images' => $connectedImageUrls,
-                            'store_type' => $connectedProduct->store?->value ?? StoreEnum::WarehouseStore->value,
+                            'store_type' => $connectedProductStoreEnum?->value ?? StoreEnum::WarehouseStore->value,
                             'available_qty' => $availableQty,
                             'out_of_stock' => $outOfStock,
                         ];

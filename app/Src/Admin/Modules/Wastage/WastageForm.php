@@ -24,7 +24,8 @@ class WastageForm extends Component
     public ?string $type = null;
     public ?int $site_id = null;
     public ?int $manager_id = null;
-    public ?int $order_id = null;
+    /** @var int|string|null When 'other' is chosen in the UI, this will be a transient string before being reset to null */
+    public int|string|null $order_id = null;
     public ?string $date = null;
     public ?string $reason = null;
 
@@ -176,6 +177,13 @@ class WastageForm extends Component
 
     public function updatedOrderId($value): void
     {
+        if ($value === 'other') {
+            // "Other" means manual products, not linked to a specific order
+            $this->wastageProducts = [];
+            $this->resetProductRows();
+            return;
+        }
+
         if (!$value) {
             $this->resetProductRows();
             return;
@@ -254,6 +262,11 @@ class WastageForm extends Component
 
     public function save(WastageService $service): void
     {
+        // When "Other" is selected in the UI, treat it as no order for validation & saving
+        if ($this->order_id === 'other') {
+            $this->order_id = null;
+        }
+
         $this->validate($this->rules());
 
         try {
