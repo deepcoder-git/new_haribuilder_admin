@@ -703,12 +703,22 @@ class OrderResource extends JsonResource
                 }
             }
             
-            $stockStatus = calculateStockStatus(
-                $displayProduct->total_stock_quantity,
-                $displayProduct->low_stock_threshold
-            );
+            // Safely calculate stock status for display product (it may be missing)
+            if ($displayProduct) {
+                $stockStatus = calculateStockStatus(
+                    $displayProduct->total_stock_quantity,
+                    $displayProduct->low_stock_threshold
+                );
 
-            $availableQty = (int) $displayProduct->total_stock_quantity;
+                $availableQty = (int) $displayProduct->total_stock_quantity;
+            } else {
+                // Fallback when display product no longer exists
+                $stockStatus = [
+                    'out_of_stock' => false,
+                    'low_stock' => false,
+                ];
+                $availableQty = 0;
+            }
 
             $products->push([
                 'product_id' => $displayProductId,
