@@ -29,7 +29,7 @@ class WastageForm extends Component
     public ?string $date = null;
     public ?string $reason = null;
 
-    /** @var array<int, array{product_id:int|null, quantity:int, wastage_qty:int, unit_type:string|null}> */
+    /** @var array<int, array{product_id:int|null, quantity:int, wastage_qty:int, unit_type:string|null, adjust_stock:bool}> */
     public array $wastageProducts = [];
 
     public function mount(?int $id = null): void
@@ -56,6 +56,7 @@ class WastageForm extends Component
                     'quantity' => (int) ($product->pivot->quantity ?? $product->pivot->wastage_qty ?? 1),
                     'wastage_qty' => (int) ($product->pivot->wastage_qty ?? 1),
                     'unit_type' => $product->pivot->unit_type ?? $product->unit_type,
+                    'adjust_stock' => (bool) ($product->pivot->adjust_stock ?? false),
                 ];
             })->values()->all();
         }
@@ -72,6 +73,7 @@ class WastageForm extends Component
             'quantity' => 1,
             'wastage_qty' => 1,
             'unit_type' => null,
+            'adjust_stock' => false,
         ];
     }
 
@@ -207,6 +209,8 @@ class WastageForm extends Component
                 'quantity' => (int) ($product->pivot->quantity ?? 1),
                 'wastage_qty' => 1,
                 'unit_type' => $product->unit_type,
+                // Default: true so order-linked wastage affects stock
+                'adjust_stock' => true,
             ];
         })->values()->all();
 
@@ -242,6 +246,7 @@ class WastageForm extends Component
             'wastageProducts.*.quantity' => ['required', 'integer', 'min:1'],
             'wastageProducts.*.wastage_qty' => ['required', 'integer', 'min:1'],
             'wastageProducts.*.unit_type' => ['nullable', 'string', 'max:255'],
+            'wastageProducts.*.adjust_stock' => ['sometimes', 'boolean'],
         ];
     }
 

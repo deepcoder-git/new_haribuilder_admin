@@ -8,30 +8,32 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class WastageProduct extends Model
+class OrderReturnItem extends Model
 {
     use HasFactory;
 
-    protected $table = 'wastage_products';
-
     protected $fillable = [
-        'wastage_id',
+        'order_return_id',
+        'order_id',
         'product_id',
-        'quantity',
-        'wastage_qty',
+        'ordered_quantity',
+        'return_quantity',
         'unit_type',
         'adjust_stock',
     ];
 
     protected $casts = [
-        'quantity' => 'decimal:2',
-        'wastage_qty' => 'decimal:2',
         'adjust_stock' => 'boolean',
     ];
 
-    public function wastage(): BelongsTo
+    public function orderReturn(): BelongsTo
     {
-        return $this->belongsTo(Wastage::class);
+        return $this->belongsTo(OrderReturn::class);
+    }
+
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
     }
 
     public function product(): BelongsTo

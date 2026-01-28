@@ -89,6 +89,8 @@ Route::group(['as' => 'admin.', 'prefix' => 'admin', 'middleware' => 'web'], fun
         // Reports
         Route::get('reports/stock-report', App\Src\Admin\Modules\Report\StockReport::class)->name('reports.stock-report');
         Route::get('reports/low-stock-report', App\Src\Admin\Modules\Report\LowStockReport::class)->name('reports.low-stock-report');
+        Route::get('reports/wastage-report', App\Src\Admin\Modules\Report\WastageReport::class)->name('reports.wastage-report');
+        Route::get('reports/return-report', App\Src\Admin\Modules\Report\ReturnReport::class)->name('reports.return-report');
         Route::get('stock/entries', App\Src\Admin\Modules\Report\StockEntries::class)->name('stock.entries');
 
         // Unit management routes
