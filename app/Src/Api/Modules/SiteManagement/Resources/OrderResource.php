@@ -733,9 +733,9 @@ class OrderResource extends JsonResource
                 'custom_images' => $customImageUrls,
                 'store_type' => StoreEnum::WarehouseStore->value,
                 'custom_products' => $connectedProductsData,
-                'low_stock' => $stockStatus['low_stock'],
-                'out_of_stock' => $stockStatus['out_of_stock'],
-                'available_qty' => $availableQty,
+                // 'low_stock' => $stockStatus['low_stock'],
+                // 'out_of_stock' => $stockStatus['out_of_stock'],
+                // 'available_qty' => $availableQty,
             ]);
         }
         
