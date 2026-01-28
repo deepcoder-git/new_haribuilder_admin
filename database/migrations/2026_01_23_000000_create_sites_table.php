@@ -11,6 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // If the table already exists (e.g. from a manual create or older project),
+        // skip creating it again to avoid "Base table already exists" errors.
+        if (Schema::hasTable('sites')) {
+            return;
+        }
+
         Schema::create('sites', function (Blueprint $table) {
             $table->id();
             $table->string('name')->unique();
