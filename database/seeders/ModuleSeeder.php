@@ -219,6 +219,21 @@ final class ModuleSeeder extends Seeder
             ],
 
             [
+                'unique_name' => 'admin.wastages',
+                'name' => 'Wastages',
+                'icon' => '<i class="fa-solid fa-trash"></i>',
+                'index_route' => 'admin.wastages.index',
+                'sub_routes' => [
+                    'admin.wastages.index',
+                    'admin.wastages.create',
+                    'admin.wastages.edit',
+                    'admin.wastages.view',
+                ],
+                'order' => 6,
+                'is_active' => true,
+                'children' => [],
+            ],
+            [
                 'unique_name' => 'admin.reports',
                 'name' => 'Reports',
                 'icon' => '<i class="fa-solid fa-chart-column"></i>',

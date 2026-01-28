@@ -115,6 +115,12 @@ Route::group(['as' => 'admin.', 'prefix' => 'admin', 'middleware' => 'web'], fun
         Route::get('orders/{id}/edit', App\Src\Admin\Modules\Order\OrderForm::class)->name('orders.edit');
         Route::get('orders/{id}/view', App\Src\Admin\Modules\Order\OrderView::class)->name('orders.view');
 
+        // Wastages
+        Route::get('wastages', App\Src\Admin\Modules\Wastage\WastageDatatable::class)->name('wastages.index');
+        Route::get('wastages/create', App\Src\Admin\Modules\Wastage\WastageForm::class)->name('wastages.create');
+        Route::get('wastages/{id}/edit', App\Src\Admin\Modules\Wastage\WastageForm::class)->name('wastages.edit');
+        Route::get('wastages/{id}/view', App\Src\Admin\Modules\Wastage\WastageView::class)->name('wastages.view');
+
         // LPOs
         Route::get('lpo', App\Src\Admin\Modules\Lpo\LpoDatatable::class)->name('lpo.index');
         Route::get('lpo/create', App\Src\Admin\Modules\Lpo\LpoForm::class)->name('lpo.create');

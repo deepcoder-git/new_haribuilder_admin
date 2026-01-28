@@ -671,8 +671,10 @@ class OrderResource extends JsonResource
                         
                         // Calculate available quantity and out of stock status
                         $availableQty = (int) $product->total_stock_quantity;
-                        $outOfStock = $availableQty <= 0 ? 1 : 0;
-                        
+                        $stockStatus = calculateStockStatus(
+                            $product->total_stock_quantity,
+                            $product->low_stock_threshold
+                        );
                         $connectedProductData = [
                             'product_id' => $productId,
                             'product_name' => $product->product_name,
@@ -687,7 +689,8 @@ class OrderResource extends JsonResource
                             'images' => $productImageUrls,
                             'store_type' => $product->store?->value ?? StoreEnum::WarehouseStore->value,
                             'available_qty' => $availableQty,
-                            'out_of_stock' => $outOfStock,
+                            'out_of_stock' => $stockStatus['out_of_stock'],
+                            'low_stock' => $stockStatus['low_stock'],
                         ];
                         
                         $connectedProductsData[] = $connectedProductData;
@@ -700,6 +703,13 @@ class OrderResource extends JsonResource
                 }
             }
             
+            $stockStatus = calculateStockStatus(
+                $displayProduct->total_stock_quantity,
+                $displayProduct->low_stock_threshold
+            );
+
+            $availableQty = (int) $displayProduct->total_stock_quantity;
+
             $products->push([
                 'product_id' => $displayProductId,
                 'custom_product_id' => $customProduct->id,
@@ -713,6 +723,9 @@ class OrderResource extends JsonResource
                 'custom_images' => $customImageUrls,
                 'store_type' => StoreEnum::WarehouseStore->value,
                 'custom_products' => $connectedProductsData,
+                'low_stock' => $stockStatus['low_stock'],
+                'out_of_stock' => $stockStatus['out_of_stock'],
+                'available_qty' => $availableQty,
             ]);
         }
         
