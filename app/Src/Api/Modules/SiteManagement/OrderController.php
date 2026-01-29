@@ -2516,12 +2516,15 @@ class OrderController extends Controller
     /**
      * Validate status transition restrictions
      * 
-     * @param string $currentStatus Current product status
+     * @param string|null $currentStatus Current product status
      * @param string $newActionType New action type to transition to
      * @return ApiErrorResponse|null Returns error response if transition is invalid, null otherwise
      */
-    private function validateStatusTransition(string $currentStatus, string $newActionType): ?ApiErrorResponse
+    private function validateStatusTransition(?string $currentStatus, string $newActionType): ?ApiErrorResponse
     {
+        // Default to 'pending' if current status is null
+        $currentStatus = $currentStatus ?? 'pending';
+        
         // RESTRICTION: If already approved, cannot change to pending or rejected
         // Can only change to: outfordelivery, in_transit, or delivered
         if (in_array($currentStatus, ['approved', 'outfordelivery', 'in_transit', 'delivered'], true)) {
@@ -2541,12 +2544,15 @@ class OrderController extends Controller
      * Handle delivered action
      * 
      * @param Order $order
-     * @param string $currentStatus
+     * @param string|null $currentStatus
      * @param string $productStatusType
      * @return ApiErrorResponse|null Returns error response if validation fails, null on success
      */
-    private function handleDeliveredAction(Order $order, string $currentStatus, string $productStatusType): ?ApiErrorResponse
+    private function handleDeliveredAction(Order $order, ?string $currentStatus, string $productStatusType): ?ApiErrorResponse
     {
+        // Default to 'pending' if current status is null
+        $currentStatus = $currentStatus ?? 'pending';
+        
         if ($currentStatus === 'delivered') {
             return new ApiErrorResponse(
                 ['errors' => [__('api.site-manager.order_already_received')]],
@@ -2569,13 +2575,16 @@ class OrderController extends Controller
      * Handle rejected action
      * 
      * @param Order $order
-     * @param string $currentStatus
+     * @param string|null $currentStatus
      * @param string $productStatusType
      * @param string $rejectedNote
      * @return ApiErrorResponse|null Returns error response if validation fails, null on success
      */
-    private function handleRejectedAction(Order $order, string $currentStatus, string $productStatusType, string $rejectedNote): ?ApiErrorResponse
+    private function handleRejectedAction(Order $order, ?string $currentStatus, string $productStatusType, string $rejectedNote): ?ApiErrorResponse
     {
+        // Default to 'pending' if current status is null
+        $currentStatus = $currentStatus ?? 'pending';
+        
         if ($currentStatus === 'rejected') {
             return new ApiErrorResponse(
                 ['errors' => [__('api.site-manager.order_already_rejected')]],
@@ -2632,13 +2641,14 @@ class OrderController extends Controller
      * Handle approved action
      * 
      * @param Order $order
-     * @param string $currentStatus
+     * @param string|null $currentStatus
      * @param string $productStatusType
      * @return ApiErrorResponse|null Returns error response if validation fails, null on success
      */
-    private function handleApprovedAction(Order $order, string $currentStatus, string $productStatusType): ?ApiErrorResponse
+    private function handleApprovedAction(Order $order, ?string $currentStatus, string $productStatusType): ?ApiErrorResponse
     {
-        $oldDeliveryStatus = $currentStatus;
+        // Default to 'pending' if current status is null
+        $oldDeliveryStatus = $currentStatus ?? 'pending';
         
         DB::beginTransaction();
         
