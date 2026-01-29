@@ -273,7 +273,9 @@ class TransportManagerController extends Controller
             ]);
 
             // Base query: Workshop (warehouse) orders only, exclude LPO
+            // Also exclude pending orders – transport manager should not see pending orders
             $baseQuery = Order::where('is_lpo', 0)
+                ->where('status', '!=', OrderStatusEnum::Pending->value)
                 ->whereHas('products', function (Builder $q) {
                     $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                 });
@@ -287,6 +289,8 @@ class TransportManagerController extends Controller
             $query = Order::with(['site','products.category', 'products.productImages'])
                 // Workshop (warehouse) orders only, exclude LPO
                 ->where('is_lpo', 0)
+                // Exclude pending orders from transport manager listing
+                ->where('status', '!=', OrderStatusEnum::Pending->value)
                 ->whereHas('products', function (Builder $q) {
                     $q->where('store', \App\Utility\Enums\StoreEnum::WarehouseStore->value);
                 })

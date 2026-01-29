@@ -1313,6 +1313,10 @@ input[type="file"].is-invalid:focus {
 }
 
 /* Select2 Styling - Global */
+.select2-container {
+    width: 100% !important;
+}
+
 .select2-container--bootstrap-5 .select2-selection {
     border: 1px solid #e5e7eb !important;
     border-radius: 0.475rem !important;
