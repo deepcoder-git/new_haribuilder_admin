@@ -5362,6 +5362,37 @@ class OrderController extends Controller
 
             if ($difference != 0) {
                 if ($difference > 0) {
+                    // Check stock availability before attempting deduction
+                    $generalStock = $this->stockService->getCurrentStock((int)$productId, null);
+                    $siteStock = $siteId ? $this->stockService->getCurrentStock((int)$productId, $siteId) : 0;
+                    $totalAvailableStock = $generalStock + $siteStock;
+
+                    if ($totalAvailableStock < $difference) {
+                        $productName = $product->product_name ?? "Product ID {$productId}";
+                        Log::warning("OrderController: Insufficient stock for product {$productId} in order {$order->id}. Available: {$totalAvailableStock}, Requested: {$difference}");
+                        throw new \Exception("Insufficient stock for {$productName}. Available: {$totalAvailableStock}, Requested: {$difference}");
+                    }
+
+                    // Check material stock availability
+                    foreach ($product->materials as $material) {
+                        $materialQtyPerUnit = (int)($material->pivot->quantity ?? 0);
+
+                        if ($materialQtyPerUnit <= 0) {
+                            continue;
+                        }
+
+                        $materialTotalQty = $materialQtyPerUnit * $difference;
+                        $materialGeneralStock = $this->stockService->getCurrentMaterialStock((int)$material->id, null);
+                        $materialSiteStock = $siteId ? $this->stockService->getCurrentMaterialStock((int)$material->id, $siteId) : 0;
+                        $materialTotalAvailable = $materialGeneralStock + $materialSiteStock;
+
+                        if ($materialTotalAvailable < $materialTotalQty) {
+                            $materialName = $material->material_name ?? "Material ID {$material->id}";
+                            Log::warning("OrderController: Insufficient material stock for {$materialName} (ID: {$material->id}) in order {$order->id}. Available: {$materialTotalAvailable}, Requested: {$materialTotalQty}");
+                            throw new \Exception("Insufficient material stock for {$materialName}. Available: {$materialTotalAvailable}, Requested: {$materialTotalQty}");
+                        }
+                    }
+
                     try {
                         $this->stockService->adjustStock(
                             (int)$productId,
