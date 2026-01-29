@@ -107,6 +107,15 @@ class AuthService
             ];
         }
 
+        // Prevent Super Admin and Admin from logging in via API
+        $role = $user->getRole();
+        if ($role === RoleEnum::SuperAdmin || $role === RoleEnum::Admin) {
+            return [
+                'hasError' => true,
+                'error' => __('auth.unauthorized'),
+            ];
+        }
+
         // Create token
         $tokenName = $user->getRole()->value . '_token';
         $abilities = [$user->getRole()->value];

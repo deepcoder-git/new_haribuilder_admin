@@ -131,7 +131,7 @@ final class ModuleSeeder extends Seeder
                         'index_route' => 'admin.lpo.index',
                         'sub_routes' => [
                             'admin.lpo.index',
-                            'admin.lpo.create',
+                            // 'admin.lpo.create', // LPO creation disabled
                             'admin.lpo.edit',
                             'admin.lpo.view',
                         ],

@@ -788,7 +788,7 @@
                                                                                                             $qty = $connectedProduct['quantity'] ?? null;
                                                                                                         @endphp
                                                                                                         <span style="font-weight: 600;">
-                                                                                                            {{ $qty !== null ? number_format((float) $qty, 2) : '—' }}
+                                                                                                            {{ $qty !== null ? formatQty($qty) : '—' }}
                                                                                                         </span>
                                                                                                     </td>
                                                                                                     <td style="padding: 0.5rem; font-size: 0.75rem; color: #4b5563; vertical-align: middle;">
@@ -992,7 +992,7 @@
                                                                 @enderror
                                                                 @if($selectedProduct)
                                                                     @php
-                                                                        $isLPO = $selectedProduct->store === \App\Utility\Enums\StoreEnum::LPO;
+                                                                        $isLPO = false; // LPO removed
                                                                         // Show a more user-friendly type label, especially for Material as Product cases
                                                                         $typeLabel = '';
                                                                         $isProductFlag = (int)($selectedProduct->is_product ?? 0);
@@ -1014,7 +1014,7 @@
                                                                         @if(!$isLPO)
                                                                             <div style="display: flex; align-items: center; gap: 0.375rem;">
                                                                                 <i class="fa-solid fa-box" style="font-size: 0.75rem; color: #059669;"></i>
-                                                                                <small class="text-muted" style="font-size: 0.8125rem; color: #6b7280;">Available Stock: <strong style="color: #059669; font-weight: 600;">{{ number_format($this->getCurrentStockForProduct($product['product_id'], $site_id)) }}</strong></small>
+                                                                                <small class="text-muted" style="font-size: 0.8125rem; color: #6b7280;">Available Stock: <strong style="color: #059669; font-weight: 600;">{{ formatQty($this->getCurrentStockForProduct($product['product_id'], $site_id)) }}</strong></small>
                                                                             </div>
                                                                         @endif
                                                                     </div>
@@ -2424,10 +2424,10 @@
                                                         <td style="padding: 0.75rem; text-align: center;">
                                                             <div class="d-flex flex-column align-items-center gap-1">
                                                                 <div style="font-weight: 600; color: #2563eb; font-size: 1rem;">
-                                                                    {{ number_format($material['calculated_quantity'] ?? 0, 2) }}
+                                                                    {{ formatQty($material['calculated_quantity'] ?? 0) }}
                                                                 </div>
                                                                 <div class="text-muted" style="font-size: 0.7rem; font-weight: 400;">
-                                                                    ({{ implode(' + ', array_filter(array_map(function($m) { return is_numeric($m) ? number_format((float)$m, 2) : ''; }, $material['measurements'] ?? []))) ?: '0' }}) × {{ $material['actual_pcs'] ?? 1 }}
+                                                                    ({{ implode(' + ', array_filter(array_map(function($m) { return is_numeric($m) ? formatQty($m) : ''; }, $material['measurements'] ?? []))) ?: '0' }}) × {{ $material['actual_pcs'] ?? 1 }}
                                                                 </div>
                                                                 <button type="button" 
                                                                         wire:click="recalculateMaterialQuantity({{ $materialIndex }})"

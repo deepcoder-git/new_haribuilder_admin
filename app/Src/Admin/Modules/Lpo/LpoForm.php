@@ -98,6 +98,12 @@ class LpoForm extends Component
 
     public function mount(?int $id = null): void
     {
+        // LPO creation disabled - redirect to index if no ID provided
+        if (!$id) {
+            $this->redirect(route('admin.lpo.index'));
+            return;
+        }
+        
         if ($id) {
             $this->isEditMode = true;
             $this->editingId = $id;
@@ -559,16 +565,13 @@ class LpoForm extends Component
             ];
 
             /** @var Order $order */
-            if ($this->isEditMode && $this->editingId) {
-                $order = Order::query()->findOrFail($this->editingId);
-                $order->update($payload);
-            } else {
-                $order = Order::query()->create(array_merge($payload, [
-                    'is_custom_product' => false,
-                ]));
-                $this->editingId = (int) $order->id;
-                $this->isEditMode = true;
+            // LPO creation disabled - only allow editing existing orders
+            if (!$this->isEditMode || !$this->editingId) {
+                throw new \RuntimeException('LPO creation is disabled. Only editing existing LPOs is allowed.');
             }
+            
+            $order = Order::query()->findOrFail($this->editingId);
+            $order->update($payload);
 
             $sync = [];
             $supplierMapping = [];

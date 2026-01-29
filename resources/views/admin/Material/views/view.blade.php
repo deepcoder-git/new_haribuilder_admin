@@ -72,7 +72,7 @@
                                 <div class="mb-3" style="line-height: 2.5;">
                                     <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Low Stock Threshold</span>
                                     <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                                    <span class="text-gray-800 fw-bold fs-6">{{ $material->low_stock_threshold ?? 'N/A' }}</span>
+                                    <span class="text-gray-800 fw-bold fs-6">{{ $material->low_stock_threshold !== null ? formatQty($material->low_stock_threshold) : 'N/A' }}</span>
                                 </div>
                                 <div class="mb-3" style="line-height: 2.5;">
                                     <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Available Qty</span>
@@ -81,7 +81,7 @@
                                         @if($material->store === \App\Utility\Enums\StoreEnum::LPO)
                                             0
                                         @else
-                                            {{ $material->available_qty ?? 'N/A' }}
+                                            {{ $material->available_qty !== null ? formatQty($material->available_qty) : 'N/A' }}
                                         @endif
                                     </span>
                                 </div>

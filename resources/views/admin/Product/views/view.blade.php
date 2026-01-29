@@ -98,7 +98,7 @@
                                     <div class="mb-3" style="line-height: 2.5;">
                                         <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Low Stock Threshold</span>
                                         <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                                        <span class="text-gray-800 fw-bold fs-6">{{ $product->low_stock_threshold ?? 'N/A' }}</span>
+                                        <span class="text-gray-800 fw-bold fs-6">{{ $product->low_stock_threshold !== null ? formatQty($product->low_stock_threshold) : 'N/A' }}</span>
                                     </div>
                                     <div class="mb-3" style="line-height: 2.5;">
                                         <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Available Qty</span>
@@ -107,7 +107,7 @@
                                             @if($product->store === \App\Utility\Enums\StoreEnum::LPO)
                                                 0
                                             @else
-                                                {{ $product->available_qty ?? 'N/A' }}
+                                                {{ $product->available_qty !== null ? formatQty($product->available_qty) : 'N/A' }}
                                             @endif
                                         </span>
                                     </div>
@@ -168,21 +168,7 @@
                                 <td class="text-center">
                                     @php
                                         $qtyRaw = $material->pivot->quantity ?? null;
-                                        $qtyDisplay = 'N/A';
-                                        if ($qtyRaw !== null && $qtyRaw !== '') {
-                                            if (is_numeric($qtyRaw)) {
-                                                $qtyFloat = (float) $qtyRaw;
-                                                // If it's effectively an integer (4.0 / 4.00), display as 4
-                                                if (abs($qtyFloat - round($qtyFloat)) < 0.0000001) {
-                                                    $qtyDisplay = (string) (int) round($qtyFloat);
-                                                } else {
-                                                    // Otherwise trim trailing zeros (e.g. 4.50 -> 4.5)
-                                                    $qtyDisplay = rtrim(rtrim(number_format($qtyFloat, 4, '.', ''), '0'), '.');
-                                                }
-                                            } else {
-                                                $qtyDisplay = (string) $qtyRaw;
-                                            }
-                                        }
+                                        $qtyDisplay = $qtyRaw !== null && $qtyRaw !== '' ? formatQty($qtyRaw) : 'N/A';
                                     @endphp
                                     <span class="text-gray-800 fw-bold">{{ $qtyDisplay }}</span>
                                 </td>

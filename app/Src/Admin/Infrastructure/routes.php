@@ -125,7 +125,8 @@ Route::group(['as' => 'admin.', 'prefix' => 'admin', 'middleware' => 'web'], fun
 
         // LPOs
         Route::get('lpo', App\Src\Admin\Modules\Lpo\LpoDatatable::class)->name('lpo.index');
-        Route::get('lpo/create', App\Src\Admin\Modules\Lpo\LpoForm::class)->name('lpo.create');
+        // LPO create route removed - creation disabled
+        // Route::get('lpo/create', App\Src\Admin\Modules\Lpo\LpoForm::class)->name('lpo.create');
         Route::get('lpo/{id}/edit', App\Src\Admin\Modules\Lpo\LpoForm::class)->name('lpo.edit');
         Route::get('lpo/{id}/view', App\Src\Admin\Modules\Lpo\LpoView::class)->name('lpo.view');
 

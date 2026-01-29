@@ -368,7 +368,19 @@ function getFileIcon(string $fileName): array
 
 function formatQty($value): string
 {
-    return number_format((int) $value, 0);
+    if ($value === null || $value === '') {
+        return '0';
+    }
+    
+    $floatValue = (float) $value;
+    
+    // If it's effectively an integer (10.00, 10.0), display as integer (10)
+    if (abs($floatValue - round($floatValue)) < 0.0000001) {
+        return (string) (int) round($floatValue);
+    }
+    
+    // Otherwise, trim trailing zeros (e.g., 10.50 -> 10.5, 10.00 -> 10)
+    return rtrim(rtrim(number_format($floatValue, 2, '.', ''), '0'), '.');
 }
 
 /**

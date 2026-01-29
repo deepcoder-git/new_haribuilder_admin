@@ -127,10 +127,11 @@ class LpoDatatable extends Component
         return (bool) ($u && $u->getRole() === RoleEnum::SuperAdmin);
     }
 
-    public function openCreateForm(): void
-    {
-        $this->redirect(route('admin.lpo.create'));
-    }
+    // LPO create functionality removed
+    // public function openCreateForm(): void
+    // {
+    //     $this->redirect(route('admin.lpo.create'));
+    // }
 
     public function openEditForm(int|string $id): void
     {

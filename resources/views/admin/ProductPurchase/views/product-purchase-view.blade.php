@@ -125,7 +125,7 @@
                                             {{ $item->product->unit_type ?? 'N/A' }}
                                         </td>
                                         <td style="padding: 0.875rem 0.75rem; text-align: center; vertical-align: middle; color: #374151; font-size: 0.9375rem;">
-                                            {{ number_format($item->quantity, 0) }}
+                                            {{ formatQty($item->quantity) }}
                                         </td>
                                         <td style="padding: 0.875rem 0.75rem; text-align: center; vertical-align: middle; color: #374151; font-size: 0.9375rem;">
                                             {{ number_format($item->unit_price, 0) }}
