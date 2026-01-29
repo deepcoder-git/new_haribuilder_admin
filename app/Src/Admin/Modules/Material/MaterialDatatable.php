@@ -276,9 +276,8 @@ class MaterialDatatable extends Component
 
         $isLow = $threshold > 0 && $qty <= $threshold;
         $badgeClass = $isLow ? 'badge-light-danger' : 'badge-light-success';
-        $label = $isLow ? 'Low' : 'OK';
 
-        return '<span class="badge ' . $badgeClass . '">' . $label . ' (' . $qty . ')</span>';
+        return '<span class="badge ' . $badgeClass . '">(' . $qty . ')</span>';
     }
 
     public function openImportModal(): void

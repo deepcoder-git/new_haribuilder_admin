@@ -578,6 +578,16 @@ class OrderController extends Controller
                 );
             }
 
+            // Check if order is delivered - delivered orders cannot be modified
+            $orderStatus = $orderDetails->status?->value ?? $orderDetails->status ?? 'pending';
+            if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                return new ApiErrorResponse(
+                    ['errors' => ['Delivered orders cannot be modified. They are read-only.']],
+                    'Order modification failed',
+                    422
+                );
+            }
+
             // Determine which product_status key we should update for this action
             // Pass user to determine product_status based on logged-in user's role and actual products
             $productStatusType = $this->resolveProductStatusTypeForOrder(
@@ -2561,11 +2571,13 @@ class OrderController extends Controller
             );
         }
 
-        $order->update([
-            'status' => OrderStatusEnum::Delivery->value,
-        ]);
-
         $order->updateProductStatus($productStatusType, 'delivered');
+        $order->refresh();
+        
+        // Sync order status from product statuses for ALL statuses
+        // For single product orders, order status should match product status
+        $order->syncOrderStatusFromProductStatuses();
+        
         $this->sendOrderNotifications($order, \App\Notifications\OrderReceivedNotification::class);
         
         return null;
@@ -2717,6 +2729,12 @@ class OrderController extends Controller
         // Store manager role and store column removed - store type determined from products
 
         $order->updateProductStatus($productStatusType, 'received');
+        $order->refresh();
+        
+        // Sync order status from product statuses for ALL statuses
+        // For single product orders, order status should match product status
+        $order->syncOrderStatusFromProductStatuses();
+        
         $storeManager->notify(new \App\Notifications\OrderReceivedNotification($order));
         
         return null;
@@ -2735,10 +2753,10 @@ class OrderController extends Controller
         $order->updateProductStatus($productStatusType, $actionType);
         $order->refresh();
         
-        $calculatedStatus = $order->calculateOrderStatusFromProductStatuses();
-        if (in_array($calculatedStatus, ['pending', 'approved'], true)) {
-            $order->update(['status' => $calculatedStatus]);
-        }
+        // Sync order status from product statuses for ALL statuses
+        // For single product orders, order status should match product status
+        // For multiple product orders, order status is calculated based on all product statuses
+        $order->syncOrderStatusFromProductStatuses();
     }
 
     public function orderAction(Request $request): ApiResponse|ApiErrorResponse
@@ -2782,6 +2800,16 @@ class OrderController extends Controller
                 $data['type_name'] ?? null,
                 $user
             );
+
+            // Check if order is delivered - delivered orders cannot be modified
+            $orderStatus = $orderDetails->status?->value ?? $orderDetails->status ?? 'pending';
+            if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                return new ApiErrorResponse(
+                    ['errors' => ['Delivered orders cannot be modified. They are read-only.']],
+                    'Order action failed',
+                    422
+                );
+            }
 
             // Get current status for validation
             $currentStatus = $orderDetails->getProductStatus($productStatusType);
@@ -4633,9 +4661,18 @@ class OrderController extends Controller
                 );
             }
 
-            // Check if order can be modified - based on main status (delivery_status is deprecated)
-            $immutableStatuses = ['approved', 'in_transit', 'delivered', 'rejected'];
+            // Check if order is delivered - delivered orders cannot be modified
             $currentStatus = $orderDetails->status?->value ?? $orderDetails->status ?? 'pending';
+            if ($currentStatus === OrderStatusEnum::Delivery->value || $currentStatus === 'delivered') {
+                return new ApiErrorResponse(
+                    ['errors' => ['Delivered orders cannot be modified. They are read-only.']],
+                    'order update failed',
+                    422
+                );
+            }
+
+            // Check if order can be modified - based on main status (delivery_status is deprecated)
+            $immutableStatuses = ['approved', 'in_transit', 'rejected'];
             if (in_array($currentStatus, $immutableStatuses, true)) {
                 return new ApiErrorResponse(
                     ['errors' => ['Processed orders cannot be modified.']],
@@ -5349,6 +5386,16 @@ class OrderController extends Controller
             }
 
             $order = Order::with('products')->findOrFail($request->order_id);
+            
+            // Check if order is delivered - delivered orders cannot be modified
+            $orderStatus = $order->status?->value ?? $order->status ?? 'pending';
+            if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                return new ApiErrorResponse(
+                    data: ['errors' => ['Delivered orders cannot be modified. They are read-only.']],
+                    message: 'Order modification failed',
+                    code: 422
+                );
+            }
             
             // Additional validation: LPO products require supplier_id (only for actual product IDs, not product types)
             foreach ($request->products as $index => $productUpdate) {

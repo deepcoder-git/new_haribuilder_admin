@@ -2193,6 +2193,13 @@ class OrderForm extends Component
             // Find the order
             $order = Order::findOrFail($this->editingId);
             
+            // Check if order is delivered - delivered orders cannot be modified
+            $orderStatus = $order->status?->value ?? $order->status ?? 'pending';
+            if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                session()->flash('product_status_error', 'Delivered orders cannot be modified. They are read-only.');
+                return;
+            }
+            
             // Get current product status for comparison (before update)
             $currentProductStatus = $order->product_status ?? $order->initializeProductStatus();
             
@@ -3073,6 +3080,14 @@ class OrderForm extends Component
 
                 if ($this->isEditMode && $this->editingId) {
                     $model = Order::with('products.productImages')->findOrFail($this->editingId);
+                    
+                    // Check if order is delivered - delivered orders cannot be modified
+                    $orderStatus = $model->status?->value ?? $model->status ?? 'pending';
+                    if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                        session()->flash('error', 'Delivered orders cannot be modified. They are read-only.');
+                        return;
+                    }
+                    
                     $oldSiteId = $model->site_id;
                     $oldTransportManagerId = $model->transport_manager_id;
                     $oldStatus = $model->status?->value ?? 'pending';

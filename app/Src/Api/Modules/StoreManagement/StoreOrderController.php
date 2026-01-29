@@ -735,9 +735,19 @@ class StoreOrderController extends Controller
             //     return new ApiErrorResponse([], 'LPO orders are not accessible through store management', 403);
             // }
 
-            $immutableStatuses = ['approved', 'in_transit', 'delivered'];
+            // Check if order is delivered - delivered orders cannot be deleted
+            $orderStatus = $order->status?->value ?? $order->status ?? 'pending';
+            if ($orderStatus === \App\Utility\Enums\OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                return new ApiErrorResponse(
+                    ['errors' => ['Delivered orders cannot be deleted. They are read-only.']],
+                    'order deletion failed',
+                    422
+                );
+            }
 
-            if (in_array($order->delivery_status, $immutableStatuses, true)) {
+            $immutableStatuses = ['approved', 'in_transit'];
+
+            if (in_array($orderStatus, $immutableStatuses, true)) {
                 return new ApiErrorResponse(
                     ['errors' => ['Processed orders cannot be deleted.']],
                     'order deletion failed',
