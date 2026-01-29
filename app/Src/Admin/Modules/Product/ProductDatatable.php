@@ -237,7 +237,8 @@ class ProductDatatable extends Component
     public function renderQuantity($product): string
     {
         $qty = (int) ($product->total_stock_quantity ?? $product->available_qty ?? 0);
-        return '<span class="fw-semibold">' . $qty . '</span>';
+        $textColor = $qty === 0 ? 'text-danger' : 'text-gray-700';
+        return '<span class="fw-semibold ' . $textColor . '">' . $qty . '</span>';
     }
 
     public function renderLowStock($product): string
@@ -245,10 +246,14 @@ class ProductDatatable extends Component
         $qty = (int) ($product->total_stock_quantity ?? $product->available_qty ?? 0);
         $threshold = (int) ($product->low_stock_threshold ?? 0);
 
-        $isLow = $threshold > 0 && $qty <= $threshold;
+        // Show red if quantity is 0 OR if quantity <= low stock threshold (when threshold is set)
+        $isLow = $qty === 0 || ($threshold > 0 && $qty <= $threshold);
         $badgeClass = $isLow ? 'badge-light-danger' : 'badge-light-success';
 
-        return '<span class="badge ' . $badgeClass . '">(' . $qty . ')</span>';
+        // Display the low stock threshold value (not the quantity)
+        $displayValue = $threshold > 0 ? $threshold : 'N/A';
+
+        return '<span class="badge ' . $badgeClass . '">' . $displayValue . '</span>';
     }
 
     public function getProductsProperty()

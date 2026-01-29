@@ -266,7 +266,8 @@ class MaterialDatatable extends Component
     public function renderAvailableQty($material): string
     {
         $qty = (int) ($material->total_stock_quantity ?? $material->available_qty ?? 0);
-        return '<span class="fw-semibold">' . $qty . '</span>';
+        $textColor = $qty === 0 ? 'text-danger' : 'text-gray-700';
+        return '<span class="fw-semibold ' . $textColor . '">' . $qty . '</span>';
     }
 
     public function renderLowStock($material): string
@@ -274,10 +275,14 @@ class MaterialDatatable extends Component
         $qty = (int) ($material->total_stock_quantity ?? $material->available_qty ?? 0);
         $threshold = (int) ($material->low_stock_threshold ?? 0);
 
-        $isLow = $threshold > 0 && $qty <= $threshold;
+        // Show red if quantity is 0 OR if quantity <= low stock threshold (when threshold is set)
+        $isLow = $qty === 0 || ($threshold > 0 && $qty <= $threshold);
         $badgeClass = $isLow ? 'badge-light-danger' : 'badge-light-success';
 
-        return '<span class="badge ' . $badgeClass . '">(' . $qty . ')</span>';
+        // Display the low stock threshold value (not the quantity)
+        $displayValue = $threshold > 0 ? $threshold : 'N/A';
+
+        return '<span class="badge ' . $badgeClass . '">' . $displayValue . '</span>';
     }
 
     public function openImportModal(): void
