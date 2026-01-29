@@ -704,11 +704,7 @@ class OrderResource extends JsonResource
                         ];
                         
                         $connectedProductsData[] = $connectedProductData;
-                        // Add to root level custom_products collection (for root level display)
                         $rootCustomProducts->push($connectedProductData);
-                    } else {
-                        // Product already exists, update quantity if needed
-                        // Quantity is already aggregated in order_products, so we keep it as is
                     }
                 }
             }
@@ -730,14 +726,13 @@ class OrderResource extends JsonResource
                 $availableQty = 0;
             }
 
-            $products->push([
+            // Build custom product data - exclude product_name, quantity, unit_type, unit_id, and category when custom_product_id is present
+            $customProductData = [
                 'product_id' => $displayProductId,
                 'custom_product_id' => $customProduct->id,
                 'type_name' => 'Workshop Store',
                 'is_custom' => 1,
                 'product_status' => $order->getProductStatus(StoreEnum::WarehouseStore->value),
-                'quantity' => $productDetails['quantity'] ?? null,
-                'unit_id' => $productDetails['unit_id'] ?? null,
                 'materials' => $materialsArray,
                 'custom_note' => $customProduct->custom_note ?? null,
                 'custom_images' => $customImageUrls,
@@ -746,7 +741,9 @@ class OrderResource extends JsonResource
                 // 'low_stock' => $stockStatus['low_stock'],
                 // 'out_of_stock' => $stockStatus['out_of_stock'],
                 // 'available_qty' => $availableQty,
-            ]);
+            ];
+            
+            $products->push($customProductData);
         }
         
         // Get all product IDs from root custom_products (connected products from custom products)
@@ -783,9 +780,6 @@ class OrderResource extends JsonResource
             return false;
         })->values();
         
-        // Ensure all quantities in the final products array are correct
-        // Regular products that remain should show their quantities from order_products
-        // Custom products and their connected products already have correct aggregated quantities
         
         // Get LPO suppliers information
         $lpoSuppliers = collect();
