@@ -29,7 +29,6 @@ return new class extends Migration
                 ->constrained('sites')
                 ->nullOnDelete();
 
-            $table->date('sale_date');
             $table->date('expected_delivery_date')->nullable();
 
             // NOTE: Removed fields per request:
@@ -78,7 +77,7 @@ return new class extends Migration
             $table->softDeletes();
 
             // Indexes (adjusted because product_id/delivery_status/store_manager_role were removed)
-            $table->index(['site_id', 'sale_date'], 'orders_site_id_sale_date_index');
+            $table->index('site_id', 'orders_site_id_index');
             $table->index('transport_manager_id', 'orders_transport_manager_id_index');
             $table->index('drop_location', 'orders_drop_location_index');
             $table->index('store', 'orders_store_index');

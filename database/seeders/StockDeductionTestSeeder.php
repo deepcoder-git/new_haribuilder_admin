@@ -228,7 +228,6 @@ class StockDeductionTestSeeder extends Seeder
         return Order::create([
             'site_manager_id' => $siteManager->id,
             'site_id' => $site->id,
-            'sale_date' => $now,
             'expected_delivery_date' => $now->copy()->addDays(2),
             'drop_location' => $site->address ?? 'Test Address',
             'priority' => $priority->value,

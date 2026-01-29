@@ -31,6 +31,16 @@ class ProductImage extends Model
 
     public function getImageUrlAttribute(): string
     {
+        if (empty($this->image_path)) {
+            return '';
+        }
+
+        // If it's already an absolute URL, return it as is
+        if (preg_match('#^https?://#i', $this->image_path)) {
+            return $this->image_path;
+        }
+
+        // Otherwise, prepend /storage/ and convert to full URL
         $relativeUrl = '/storage/' . $this->image_path;
         return url($relativeUrl);
     }

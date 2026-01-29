@@ -123,7 +123,7 @@ class OrderResource extends JsonResource
             $availableQty = (int) $product->total_stock_quantity;
             $outOfStock = $availableQty <= 0 ? 1 : 0;
             
-            $orderStatus = $this->status?->value ?? $this->status ?? 'pending';
+            $orderStatus = $this->resource->getProductStatus($product->store?->value ?? $product->store);
 
             $regularProducts->push([
                 'product_id' => $product->id,
@@ -293,7 +293,7 @@ class OrderResource extends JsonResource
                         $availableQty = (int) $getproductRes->total_stock_quantity;
                         $outOfStock = $availableQty <= 0 ? 1 : 0;
                         
-                        $orderStatus = $this->status?->value ?? $this->status ?? 'pending';
+                        $orderStatus = $this->resource->getProductStatus($productStore?->value ?? $productStore);
 
                         $connectedProductData = [
                             'product_id' => $getproductRes->id,
@@ -368,9 +368,11 @@ class OrderResource extends JsonResource
                 }
             }
 
-            $orderStatus = $this->status?->value ?? $this->status ?? 'pending';
-
+          
+            
             if ($isWarehouseStoreManager) {
+
+                $orderStatus = $this->resource->getProductStatus(StoreEnum::WarehouseStore->value);
                 // Workshop format: custom products at root with regular products nested
                 $customProducts->push([
                     'product_id' => $customProduct->id ?? null,
@@ -390,10 +392,8 @@ class OrderResource extends JsonResource
                     'custom_products' => $connectedProductsData,
                 ]);
             } else {
-                // Hardware format: custom products in standard format (will be merged with regular products)
-                // Use product store type if available, otherwise default to workshop
-                $productStore = $product?->store ?? $displayProduct?->store ?? StoreEnum::WarehouseStore;
-                
+                $productStore = $product?->store ?? $displayProduct?->store ?? StoreEnum::HardwareStore;
+                $orderStatus = $this->getProductStatus($productStore?->value ?? $productStore);
                 $customProducts->push([
                     'product_id' => $customProduct->id ?? null,
                     'custom_product_id' => $customProduct->id ?? null,
