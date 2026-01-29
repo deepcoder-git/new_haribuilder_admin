@@ -426,7 +426,7 @@ class TransportOrderResource extends JsonResource
             'site_name' => $rootOrder->site->name ?? null,
             'site_location' => $rootOrder->site->location ?? null,
             'status' => $currentOrder->status?->value ?? 'pending',
-            'delivery_status' => $currentOrder->getProductStatus(StoreEnum::WarehouseStore->value),
+            'delivery_status' => $currentOrder->status?->value ?? 'pending',
             'priority' => $rootOrder->priority ?? null,
             'note' => $rootOrder->note ?? null,
             'rejected_note' => $rootOrder->rejected_note ?? null,
