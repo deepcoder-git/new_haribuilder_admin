@@ -5346,14 +5346,36 @@ class OrderController extends Controller
         $allProductIds = array_unique(array_merge(array_keys($oldProductsData), array_keys($newProductsData)));
 
         foreach ($allProductIds as $productId) {
-            $product = Product::with('materials')->find($productId);
+            // Explicitly select store column to ensure it's loaded and cast properly
+            $product = Product::with('materials')->select('products.*')->find($productId);
 
             if (!$product) {
                 continue;
             }
 
-            if ($product->store && $product->store === StoreEnum::LPO) {
+            // Skip LPO products (they don't use stock management)
+            // The store attribute should be automatically cast to StoreEnum by Laravel
+            if ($product->store === StoreEnum::LPO) {
+                Log::info("OrderController: Skipping LPO product {$productId} in order {$order->id} from stock adjustment");
                 continue;
+            }
+            
+            // Additional check in case cast didn't work (fallback)
+            $storeValue = $product->getRawOriginal('store');
+            if ($storeValue === StoreEnum::LPO->value) {
+                Log::info("OrderController: Skipping LPO product {$productId} (via raw value) in order {$order->id} from stock adjustment");
+                continue;
+            }
+
+            // Skip workshop products if status is "approved" but not yet "outfordelivery"
+            // BUSINESS RULE: Workshop products stock is NOT deducted on approval, only when status changes to "outfordelivery"
+            if ($product->store === StoreEnum::WarehouseStore) {
+                $workshopStatus = $order->getProductStatus('workshop');
+                // Skip stock adjustment if workshop status is approved (stock will be deducted when status changes to outfordelivery)
+                if ($workshopStatus === 'approved') {
+                    Log::info("OrderController: Skipping workshop product {$productId} in order {$order->id} - status is approved, stock will be deducted when status changes to outfordelivery");
+                    continue;
+                }
             }
 
             $oldQuantity = isset($oldProductsData[$productId]) ? (int)($oldProductsData[$productId]['quantity'] ?? 0) : 0;
