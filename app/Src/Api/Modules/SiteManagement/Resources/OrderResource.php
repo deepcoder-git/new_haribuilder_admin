@@ -735,7 +735,7 @@ class OrderResource extends JsonResource
                 'custom_product_id' => $customProduct->id,
                 'type_name' => 'Workshop Store',
                 'is_custom' => 1,
-                'product_status' => 'pending',
+                'product_status' => $order->getProductStatus(StoreEnum::WarehouseStore->value),
                 'quantity' => $productDetails['quantity'] ?? null,
                 'unit_id' => $productDetails['unit_id'] ?? null,
                 'materials' => $materialsArray,
