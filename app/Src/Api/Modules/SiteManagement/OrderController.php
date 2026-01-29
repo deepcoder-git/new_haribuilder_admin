@@ -5373,7 +5373,7 @@ class OrderController extends Controller
                 'order_id' => 'required|integer|exists:orders,id',
                 'products' => 'required|array|min:1',
                 'products.*.product_id' => 'required', // Can be integer (product ID) or string (product type: 'hardware', 'workshop')
-                'products.*.status' => 'required|string|in:pending,approved,rejected',
+                'products.*.status' => 'required',
                 'products.*.supplier_id' => 'sometimes|nullable|integer|exists:suppliers,id',
             ]);
 
