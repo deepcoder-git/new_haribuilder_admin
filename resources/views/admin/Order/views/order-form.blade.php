@@ -185,7 +185,6 @@
                                  x-on:scroll="handleScroll($event)">
                                 @if($siteLoading && empty($siteSearchResults))
                                     <div class="text-center py-4 text-muted" style="font-size: 0.875rem;">
-                                        <i class="fa-solid fa-spinner fa-spin mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
                                         <div>Searching...</div>
                                     </div>
                                 @elseif(empty($siteSearchResults))
@@ -216,7 +215,6 @@
                                     @if($siteLoading && $siteHasMore)
                                         <div class="text-center py-2"
                                              style="border-top: 1px solid #e5e7eb; background: #f9fafb; font-size: 0.875rem; color: #6b7280;">
-                                            <i class="fa-solid fa-spinner fa-spin me-1"></i>
                                             Loading more...
                                         </div>
                                     @elseif($siteHasMore)
@@ -307,7 +305,6 @@
                                  x-on:scroll="handleScroll($event)">
                                 @if($siteManagerLoading && empty($siteManagerSearchResults))
                                     <div class="text-center py-4 text-muted" style="font-size: 0.875rem;">
-                                        <i class="fa-solid fa-spinner fa-spin mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
                                         <div>Searching...</div>
                                     </div>
                                 @elseif(empty($siteManagerSearchResults))
@@ -338,7 +335,6 @@
                                     @if($siteManagerLoading && $siteManagerHasMore)
                                         <div class="text-center py-2"
                                              style="border-top: 1px solid #e5e7eb; background: #f9fafb; font-size: 0.875rem; color: #6b7280;">
-                                            <i class="fa-solid fa-spinner fa-spin me-1"></i>
                                             Loading more...
                                         </div>
                                     @elseif($siteManagerHasMore)
@@ -920,7 +916,6 @@
                                                                                      x-on:scroll="handleScroll($event)">
                                                                                     @if(isset($productLoading[$index]) && $productLoading[$index] && empty($productSearchResults[$index] ?? []))
                                                                                         <div class="text-center py-4 text-muted" style="font-size: 0.875rem;">
-                                                                                            <i class="fa-solid fa-spinner fa-spin mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
                                                                                             <div>Searching...</div>
                                                                                         </div>
                                                                                     @elseif(empty($productSearchResults[$index] ?? []))
@@ -961,7 +956,6 @@
                                                                                         @if(isset($productLoading[$index]) && $productLoading[$index] && !empty($productHasMore[$index] ?? false))
                                                                                             <div class="text-center py-2"
                                                                                                  style="border-top: 1px solid #e5e7eb; background: #f9fafb; font-size: 0.875rem; color: #6b7280;">
-                                                                                                <i class="fa-solid fa-spinner fa-spin me-1"></i>
                                                                                                 Loading more...
                                                                                             </div>
                                                                                         @elseif(!empty($productHasMore[$index] ?? false))
@@ -1148,7 +1142,6 @@
                                                                              x-on:scroll="handleScroll($event)">
                                                                             @if(isset($supplierLoading[$index]) && $supplierLoading[$index] && empty($supplierSearchResults[$index] ?? []))
                                                                                 <div class="text-center py-4 text-muted" style="font-size: 0.875rem;">
-                                                                                    <i class="fa-solid fa-spinner fa-spin mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
                                                                                     <div>Searching...</div>
                                                                                 </div>
                                                                             @elseif(empty($supplierSearchResults[$index] ?? []))
@@ -1514,7 +1507,6 @@
                                                                  x-on:scroll="handleScroll($event)">
                                                                 @if(isset($productLoading[$index]) && $productLoading[$index] && empty($productSearchResults[$index] ?? []))
                                                                     <div class="text-center py-4 text-muted" style="font-size: 0.875rem;">
-                                                                        <i class="fa-solid fa-spinner fa-spin mb-2" style="font-size: 1.5rem; opacity: 0.5;"></i>
                                                                         <div>Searching...</div>
                                                                     </div>
                                                                 @elseif(empty($productSearchResults[$index] ?? []))
@@ -1555,7 +1547,6 @@
                                                                     @if(isset($productLoading[$index]) && $productLoading[$index] && !empty($productHasMore[$index] ?? false))
                                                                         <div class="text-center py-2"
                                                                              style="border-top: 1px solid #e5e7eb; background: #f9fafb; font-size: 0.875rem; color: #6b7280;">
-                                                                            <i class="fa-solid fa-spinner fa-spin me-1"></i>
                                                                             Loading more...
                                                                         </div>
                                                                     @elseif(!empty($productHasMore[$index] ?? false))
@@ -2142,7 +2133,6 @@
                                              x-on:scroll="handleScroll($event)">
                                             @if($customProductPopupLoading && empty($customProductPopupResults))
                                                 <div class="text-center py-4 text-muted">
-                                                    <i class="fa-solid fa-spinner fa-spin mb-2"></i>
                                                     <div>Searching...</div>
                                                 </div>
                                             @elseif(empty($customProductPopupResults))
