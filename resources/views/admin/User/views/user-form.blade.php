@@ -31,7 +31,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
-                        Email Address <span class="text-danger">*</span>
+                        Email Address <span class="text-muted">(Optional)</span>
                     </label>
                     <input type="email" 
                            wire:model.blur="email"
@@ -49,12 +49,20 @@
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Mobile Number <span class="text-danger">*</span>
                     </label>
-                    <input type="tel" 
-                           wire:model.blur="mobile_number"
-                           class="form-control form-control-solid @error('mobile_number') is-invalid @enderror"
-                           placeholder="Enter mobile number (10-15 digits)"
-                           maxlength="15"
-                           style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;"/>
+                    <div class="input-group">
+                        <span class="input-group-text bg-light border-end-0" style="border-radius: 0.5rem 0 0 0.5rem;">
+                            +248
+                        </span>
+                        <input type="tel" 
+                               wire:model.blur="mobile_number"
+                               class="form-control form-control-solid @error('mobile_number') is-invalid @enderror"
+                               placeholder="Enter 7 digit mobile number"
+                               maxlength="7"
+                               style="height: 44px; border-radius: 0 0.5rem 0.5rem 0; border: 1px solid #e5e7eb; border-left: 0;"/>
+                    </div>
+                    <small class="text-muted d-block mt-1">
+                        Country code is fixed to +248. Please enter only the 7 digit local number.
+                    </small>
                     @error('mobile_number') 
                         <div class="text-danger small mt-1 d-flex align-items-center">
                             <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>

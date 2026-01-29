@@ -133,9 +133,9 @@ class UserForm extends Component
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
         ];
 
-        // Email and mobile number rules (one required)
-        $emailRules = ['nullable', 'email', 'max:255', 'required_without:mobile_number'];
-        $mobileRules = ['nullable', 'digits_between:10,15', 'required_without:email'];
+        // Email is optional. Mobile number is required (local 7–digit number, Seychelles).
+        $emailRules = ['nullable', 'email', 'max:255'];
+        $mobileRules = ['required', 'digits:7'];
 
         if ($this->isEditMode) {
             $emailRules[] = 'unique:moderators,email,' . $this->editingId;
@@ -178,11 +178,10 @@ class UserForm extends Component
     {
         return [
             'name.required' => 'The full name is required.',
-            'email.required_without' => 'Email is required when mobile number is not provided.',
             'email.email' => 'The email must be a valid email address.',
             'email.unique' => 'The email has already been taken.',
-            'mobile_number.required_without' => 'The mobile number is required when email is not provided.',
-            'mobile_number.digits_between' => 'The mobile number must be between 10 and 15 digits.',
+            'mobile_number.required' => 'The mobile number is required.',
+            'mobile_number.digits' => 'The mobile number must be exactly 7 digits (local number).',
             'mobile_number.unique' => 'The mobile number has already been taken.',
             'role.required' => 'The role is required.',
             'store.required' => 'Please select a store for store managers.',
@@ -270,7 +269,16 @@ class UserForm extends Component
 
     private function normalizeMobile(?string $value): string
     {
-        return preg_replace('/\s+/', '', (string) $value) ?? '';
+        // Keep only digits
+        $digits = preg_replace('/\D+/', '', (string) $value) ?? '';
+
+        // If the number starts with the Seychelles country code (248),
+        // normalise it to the local 7–digit part.
+        if (strlen($digits) > 7) {
+            $digits = substr($digits, -7);
+        }
+
+        return $digits;
     }
 
     private function normalizeBoolean(mixed $value): bool
