@@ -14,7 +14,7 @@ enum OrderStatusEnum: string
     case Pending = 'pending';
     case Approved = 'approved';
     case InTransit = 'in_transit';
-    case Delivery = 'delivered';
+    case Delivery = 'delivery';
     case Rejected = 'rejected';
     case Cancelled = 'cancelled';
     case OutOfDelivery = 'outfordelivery';
@@ -25,7 +25,7 @@ enum OrderStatusEnum: string
             self::Pending => 'Pending',
             self::Approved => 'Approved',
             self::InTransit => 'In Transit',
-            self::Delivery => 'Delivered',
+            self::Delivery => 'Delivery',
             self::Rejected => 'Rejected',
             self::Cancelled => 'Cancelled',
             self::OutOfDelivery => 'Out of Delivery',
