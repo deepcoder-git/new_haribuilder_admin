@@ -729,7 +729,10 @@ class OrderController extends Controller
                     }
                 } else {
                     // Fallback for other action types (e.g., outfordelivery)
-                    $this->handleDefaultAction($orderDetails, $actionType, $productStatusType);
+                    $error = $this->handleDefaultAction($orderDetails, $actionType, $productStatusType);
+                    if ($error) {
+                        return $error;
+                    }
                 }
             }
 
@@ -2491,6 +2494,43 @@ class OrderController extends Controller
     }
 
     /**
+     * Extract products data filtered by store type
+     * 
+     * @param Order $order
+     * @param StoreEnum|null $storeType Filter by store type (null = all types)
+     * @return array
+     */
+    private function extractProductsDataByStoreType(Order $order, ?StoreEnum $storeType = null): array
+    {
+        $productsData = [];
+        
+        if (!$order->relationLoaded('products')) {
+            $order->load('products');
+        }
+        
+        foreach ($order->products as $product) {
+            // Skip LPO products (no stock deduction)
+            if ($product->store === StoreEnum::LPO) {
+                continue;
+            }
+            
+            // Filter by store type if specified
+            if ($storeType !== null && $product->store !== $storeType) {
+                continue;
+            }
+            
+            $pivot = $product->pivot;
+            if ($pivot && !empty($pivot->quantity)) {
+                $productsData[$product->id] = [
+                    'quantity' => (int)$pivot->quantity,
+                ];
+            }
+        }
+        
+        return $productsData;
+    }
+
+    /**
      * Send notifications to store managers and transport manager
      * 
      * @param Order $order
@@ -2670,11 +2710,15 @@ class OrderController extends Controller
             $order->syncOrderStatusFromProductStatuses();
             Order::syncParentChildOrderStatuses($order);
 
+            // BUSINESS RULE: Only deduct stock for hardware products when status changes to "approved"
+            // Workshop products: Stock NOT deducted on approval (deducted later on "outfordelivery")
+            // LPO products: No stock deduction (external products)
             if ($oldDeliveryStatus !== 'approved' && $oldDeliveryStatus !== 'in_transit') {
-                $productsData = $this->extractProductsData($order);
+                // Only extract hardware products for stock deduction
+                $hardwareProductsData = $this->extractProductsDataByStoreType($order, StoreEnum::HardwareStore);
                 
-                if (!empty($productsData)) {
-                    $stockError = $this->deductStockForOrder($order, $productsData, $order->site_id);
+                if (!empty($hardwareProductsData)) {
+                    $stockError = $this->deductStockForOrder($order, $hardwareProductsData, $order->site_id);
                     if ($stockError) {
                         $order->updateProductStatus($productStatusType, $oldDeliveryStatus);
                         DB::rollBack();
@@ -2746,17 +2790,65 @@ class OrderController extends Controller
      * @param Order $order
      * @param string $actionType
      * @param string $productStatusType
-     * @return void
+     * @return ApiErrorResponse|null Returns error response if validation fails, null on success
      */
-    private function handleDefaultAction(Order $order, string $actionType, string $productStatusType): void
+    private function handleDefaultAction(Order $order, string $actionType, string $productStatusType): ?ApiErrorResponse
     {
-        $order->updateProductStatus($productStatusType, $actionType);
-        $order->refresh();
+        $oldStatus = $order->getProductStatus($productStatusType);
         
-        // Sync order status from product statuses for ALL statuses
-        // For single product orders, order status should match product status
-        // For multiple product orders, order status is calculated based on all product statuses
-        $order->syncOrderStatusFromProductStatuses();
+        DB::beginTransaction();
+        
+        try {
+            $order->updateProductStatus($productStatusType, $actionType);
+            $order->refresh();
+            
+            // BUSINESS RULE: Deduct stock for workshop products when status changes to "outfordelivery"
+            // Hardware products: Already deducted on approval
+            // LPO products: No stock deduction (external products)
+            if ($actionType === 'outfordelivery' && $oldStatus !== 'outfordelivery') {
+                // Only extract workshop products for stock deduction
+                $workshopProductsData = $this->extractProductsDataByStoreType($order, StoreEnum::WarehouseStore);
+                
+                if (!empty($workshopProductsData)) {
+                    $stockError = $this->deductStockForOrder($order, $workshopProductsData, $order->site_id);
+                    if ($stockError) {
+                        // Rollback status change if stock deduction fails
+                        $order->updateProductStatus($productStatusType, $oldStatus ?? 'pending');
+                        DB::rollBack();
+                        Log::error("OrderController: Failed to deduct stock for workshop products when changing to outfordelivery for order #{$order->id}");
+                        return $stockError;
+                    }
+                }
+            }
+            
+            // Sync order status from product statuses for ALL statuses
+            // For single product orders, order status should match product status
+            // For multiple product orders, order status is calculated based on all product statuses
+            $order->syncOrderStatusFromProductStatuses();
+            
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error("OrderController: Failed to handle default action ({$actionType}) for order #{$order->id}: " . $e->getMessage(), [
+                'order_id' => $order->id,
+                'action_type' => $actionType,
+                'product_status_type' => $productStatusType,
+                'old_status' => $oldStatus,
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            // Rollback status change
+            $order->updateProductStatus($productStatusType, $oldStatus ?? 'pending');
+            
+            return new ApiErrorResponse(
+                ['errors' => [$e->getMessage()]],
+                'Order action failed. Please try again.',
+                422
+            );
+        }
+        
+        return null;
     }
 
     public function orderAction(Request $request): ApiResponse|ApiErrorResponse
@@ -3090,7 +3182,10 @@ class OrderController extends Controller
             }
 
             // Fallback for other action types (e.g., outfordelivery)
-            $this->handleDefaultAction($orderDetails, $data['action_type'], $productStatusType);
+            $error = $this->handleDefaultAction($orderDetails, $data['action_type'], $productStatusType);
+            if ($error) {
+                return $error;
+            }
             
             return new ApiResponse(
                 isError: false,
@@ -5598,9 +5693,13 @@ class OrderController extends Controller
             $oldProductStatuses = $order->product_status ?? $order->initializeProductStatus();
             
             // Track which product types changed to 'approved' for stock deduction
+            // BUSINESS RULE:
+            // - Hardware products: Stock deducted when status changes to "approved"
+            // - Workshop products: Stock NOT deducted when status changes to "approved" (deducted later on "outfordelivery")
+            // - LPO products: No stock deduction (external products)
             $typesToDeductStock = [];
             
-            // Check hardware status change
+            // Check hardware status change - only hardware products get stock deducted on approval
             if (isset($productStatuses['hardware']) && $productStatuses['hardware'] === 'approved') {
                 $oldHardwareStatus = $oldProductStatuses['hardware'] ?? null;
                 if ($oldHardwareStatus !== 'approved') {
@@ -5608,11 +5707,25 @@ class OrderController extends Controller
                 }
             }
             
-            // Check workshop status change
-            if (isset($productStatuses['workshop']) && $productStatuses['workshop'] === 'approved') {
+            // Workshop products: Do NOT deduct stock when status changes to 'approved'
+            // Stock will be deducted when status changes to 'outfordelivery' (handled in handleDefaultAction)
+            // Check workshop status change to 'outfordelivery' for stock deduction
+            if (isset($productStatuses['workshop']) && $productStatuses['workshop'] === 'outfordelivery') {
                 $oldWorkshopStatus = $oldProductStatuses['workshop'] ?? null;
-                if ($oldWorkshopStatus !== 'approved') {
-                    $typesToDeductStock[] = 'workshop';
+                if ($oldWorkshopStatus !== 'outfordelivery') {
+                    // Deduct stock for workshop products when changing to outfordelivery
+                    try {
+                        $workshopProductsData = $this->extractProductsDataByStoreType($order, StoreEnum::WarehouseStore);
+                        if (!empty($workshopProductsData)) {
+                            $stockError = $this->deductStockForOrder($order, $workshopProductsData, $order->site_id);
+                            if ($stockError) {
+                                throw new \Exception($stockError->message);
+                            }
+                        }
+                    } catch (\Exception $e) {
+                        Log::error("OrderController: Failed to deduct stock for workshop products when changing to outfordelivery in order {$order->id}: " . $e->getMessage());
+                        throw $e;
+                    }
                 }
             }
 
@@ -5623,7 +5736,7 @@ class OrderController extends Controller
             }
             $order->save();
 
-            // Deduct stock for product types that changed to 'approved'
+            // Deduct stock for hardware products that changed to 'approved'
             foreach ($typesToDeductStock as $type) {
                 try {
                     $this->deductStockForProductType($order, $type);
