@@ -4674,8 +4674,9 @@ class OrderForm extends Component
         $existingProductIds = $this->orderProducts[$index]['product_ids'] ?? [];
         $this->customProductPopupProducts = [];
 
-        // Try to load overall quantity from existing custom product details (for single connected product)
+        // Try to load overall quantity and per-product quantities from existing custom product details
         $overallQuantity = null;
+        $perProductQuantities = [];
         $customProductId = $this->orderProducts[$index]['custom_product_id'] ?? null;
         if ($customProductId) {
             $existingCustomProduct = OrderCustomProduct::find($customProductId);
@@ -4683,6 +4684,10 @@ class OrderForm extends Component
                 $details = $existingCustomProduct->product_details;
                 if (isset($details['quantity']) && (int)$details['quantity'] > 0) {
                     $overallQuantity = (int)$details['quantity'];
+                }
+                // Load per-product quantities if they exist
+                if (!empty($details['product_quantities']) && is_array($details['product_quantities'])) {
+                    $perProductQuantities = $details['product_quantities'];
                 }
             }
         }
@@ -4692,9 +4697,17 @@ class OrderForm extends Component
             foreach ($existingProductIds as $productId) {
                 $product = Product::with('category')->find($productId);
                 if ($product) {
-                    $quantity = ($isSingleProduct && $overallQuantity !== null)
-                        ? $overallQuantity
-                        : 1;
+                    // Default quantity logic:
+                    // - If we have saved per-product quantities, use them.
+                    // - Else if there is a single connected product and an overall quantity, use that.
+                    // - Otherwise default to 1.
+                    if (!empty($perProductQuantities) && array_key_exists($productId, $perProductQuantities)) {
+                        $quantity = (int) $perProductQuantities[$productId];
+                    } elseif ($isSingleProduct && $overallQuantity !== null) {
+                        $quantity = $overallQuantity;
+                    } else {
+                        $quantity = 1;
+                    }
                     $this->customProductPopupProducts[] = [
                         'id' => $product->id,
                         'name' => $product->product_name,
@@ -5694,14 +5707,20 @@ class OrderForm extends Component
                         $newQuantity = (int)$totalQuantity;
                     } else {
                         // No materials configured in popup.
-                        // In this case, derive quantity from connected products popup quantities.
+                        // In this case, derive quantity from connected products popup quantities
+                        // and also persist per-product quantities so that the popup and
+                        // order edit view stay in sync.
                         unset($productDetails['materials']);
 
                         $totalQuantityFromProducts = 0;
+                        $perProductQuantities = [];
                         if (!empty($this->customProductPopupProducts) && is_array($this->customProductPopupProducts)) {
                             foreach ($this->customProductPopupProducts as $popupProduct) {
-                                $qty = isset($popupProduct['quantity']) ? (int)$popupProduct['quantity'] : 0;
-                                if ($qty > 0) {
+                                $productId = isset($popupProduct['id']) ? (int) $popupProduct['id'] : null;
+                                $qty = isset($popupProduct['quantity']) ? (int) $popupProduct['quantity'] : 0;
+
+                                if ($productId && $qty > 0) {
+                                    $perProductQuantities[$productId] = $qty;
                                     $totalQuantityFromProducts += $qty;
                                 }
                             }
@@ -5709,11 +5728,15 @@ class OrderForm extends Component
 
                         if ($totalQuantityFromProducts > 0) {
                             $productDetails['quantity'] = $totalQuantityFromProducts;
+                            $productDetails['product_quantities'] = $perProductQuantities;
                             $newQuantity = (int)$totalQuantityFromProducts;
-                        } elseif (!isset($productDetails['quantity'])) {
-                            // If nothing else is set, default to 0
-                            $productDetails['quantity'] = 0;
-                            $newQuantity = 0;
+                        } else {
+                            // If nothing else is set, clear per-product quantities and default total to 0
+                            unset($productDetails['product_quantities']);
+                            if (!isset($productDetails['quantity'])) {
+                                $productDetails['quantity'] = 0;
+                            }
+                            $newQuantity = (int) ($productDetails['quantity'] ?? 0);
                         }
                     }
                     
@@ -5891,12 +5914,16 @@ class OrderForm extends Component
             $customProductId = $this->orderProducts[$index]['custom_product_id'] ?? null;
             $materialsSummary = null;
             $totalQuantity = null;
+            $perProductQuantities = [];
 
             if ($customProductId) {
                 $customProduct = OrderCustomProduct::find($customProductId);
                 if ($customProduct && is_array($customProduct->product_details)) {
                     $productDetails = $customProduct->product_details;
                     $totalQuantity = $productDetails['quantity'] ?? null;
+                    if (!empty($productDetails['product_quantities']) && is_array($productDetails['product_quantities'])) {
+                        $perProductQuantities = $productDetails['product_quantities'];
+                    }
 
                     $materials = $productDetails['materials'] ?? [];
                     if (!empty($materials) && is_array($materials)) {
@@ -5936,13 +5963,22 @@ class OrderForm extends Component
             foreach ($productIds as $productId) {
                 if (isset($products[$productId])) {
                     $product = $products[$productId];
+
+                    // Decide which quantity to show for each connected product:
+                    // - If per-product quantities were saved, use those.
+                    // - Otherwise, fall back to the overall total quantity (legacy behaviour).
+                    $displayQty = $totalQuantity;
+                    if (!empty($perProductQuantities) && array_key_exists($productId, $perProductQuantities)) {
+                        $displayQty = $perProductQuantities[$productId];
+                    }
+
                     $connectedProducts[] = [
                         'id' => $product->id,
                         'name' => $product->product_name,
                         'category' => $product->category->name ?? 'N/A',
                         'unit' => $product->unit_type ?? 'N/A',
                         'image_url' => $product->first_image_url ?? null,
-                        'quantity' => $totalQuantity,
+                        'quantity' => $displayQty,
                         'materials_summary' => $materialsSummary,
                     ];
                 }
