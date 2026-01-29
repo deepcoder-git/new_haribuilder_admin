@@ -408,19 +408,11 @@ class Order extends Model
 
     /**
      * Update product status for a specific product type
-     * Automatically syncs order status based on product statuses after update
      */
     public function updateProductStatus(string $type, string $status): bool
     {
         $this->setProductStatus($type, $status);
-        $saved = $this->save();
-        
-        // Sync order status from product statuses (especially important for single product orders)
-        if ($saved) {
-            $this->syncOrderStatusFromProductStatuses();
-        }
-        
-        return $saved;
+        return $this->save();
     }
 
     /**
@@ -623,9 +615,6 @@ class Order extends Model
             $allOutForDelivery = !empty($statuses)
                 && count(array_diff($statuses, ['outfordelivery'])) === 0;
             
-            $allOutForDeliveryOrRejected = !empty($statuses)
-                && count(array_diff($statuses, ['outfordelivery', 'rejected'])) === 0;
-            
             $allDeliveredOrRejected = !empty($statuses)
                 && count(array_diff($statuses, ['delivered', 'rejected'])) === 0;
             
@@ -635,25 +624,8 @@ class Order extends Model
             $allRejectedOnly = !empty($statuses)
                 && count(array_diff($statuses, ['rejected'])) === 0;
             
-            // 4) Parent = Rejected -> all are rejected
-            if ($allRejectedOnly) {
-                return \App\Utility\Enums\OrderStatusEnum::Rejected->value;
-            }
-            
-            // 5) Parent = Out of delivery
-            //    - all are out for delivery
-            //    - OR any out for delivery and rest rejected (out for delivery takes priority)
+            // 5) Parent = Out of delivery -> all are out for delivery
             if ($allOutForDelivery) {
-                return \App\Utility\Enums\OrderStatusEnum::OutOfDelivery->value;
-            }
-            
-            if ($allOutForDeliveryOrRejected && $hasOutForDelivery) {
-                // mix of outfordelivery + rejected -> out for delivery
-                return \App\Utility\Enums\OrderStatusEnum::OutOfDelivery->value;
-            }
-            
-            // If any product is out for delivery (and not all rejected), order is out for delivery
-            if ($hasOutForDelivery && !$allRejectedOnly) {
                 return \App\Utility\Enums\OrderStatusEnum::OutOfDelivery->value;
             }
             
@@ -677,6 +649,11 @@ class Order extends Model
                     // mix of approved + rejected
                     return \App\Utility\Enums\OrderStatusEnum::Approved->value;
                 }
+            }
+            
+            // 4) Parent = Rejected -> all are rejected
+            if ($allRejectedOnly) {
+                return \App\Utility\Enums\OrderStatusEnum::Rejected->value;
             }
             
             // Fallback for mixed edge cases with no pending:
