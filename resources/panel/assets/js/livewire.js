@@ -15,44 +15,75 @@ document.addEventListener("livewire:initialized", () => {
         }
     };
 
-    // Show loader when Livewire request starts (with small delay to prevent flash on quick requests)
-    Livewire.hook('request', ({ uri, options, payload, respond, succeed, fail }) => {
-        requestCount++;
-        
-        // Clear any pending hide timeout
-        if (loadingTimeout) {
-            clearTimeout(loadingTimeout);
-            loadingTimeout = null;
-        }
-        
-        // Show loader after 150ms delay (prevents flash on quick requests)
-        loadingTimeout = setTimeout(() => {
-            if (requestCount > 0) {
-                showLivewireLoader();
+    /**
+     * Determine if a Livewire request is a "background" interaction
+     * (typing in inputs / simple field syncing) where we don't want
+     * to block the whole page with the global loader.
+     */
+    const isBackgroundInteraction = (payload) => {
+        if (!payload) return false;
+
+        // Livewire v3: input updates are sent via `updates` with type `syncInput`
+        if (Array.isArray(payload.updates) && payload.updates.length > 0) {
+            const onlySyncInputs = payload.updates.every(update => update.type === 'syncInput');
+            if (onlySyncInputs) {
+                return true;
             }
-        }, 150);
+        }
+
+        // Fallback: if there is an actionQueue, assume it's a method call (button click, save, etc.)
+        // and we DO want the loader.
+        return false;
+    };
+
+    // Show loader only for non-background Livewire requests
+    Livewire.hook('request', ({ uri, options, payload, respond, succeed, fail }) => {
+        const background = isBackgroundInteraction(payload);
+
+        if (!background) {
+            requestCount++;
+
+            // Clear any pending hide timeout
+            if (loadingTimeout) {
+                clearTimeout(loadingTimeout);
+                loadingTimeout = null;
+            }
+
+            // Show loader after a slightly longer delay to avoid flashing
+            // on quick interactions (especially dropdown changes).
+            const delay = 400;
+            loadingTimeout = setTimeout(() => {
+                if (requestCount > 0) {
+                    showLivewireLoader();
+                }
+            }, delay);
+        }
 
         // Handle successful response
         succeed(({ status, json }) => {
-            requestCount = Math.max(0, requestCount - 1);
-            if (requestCount === 0) {
-                if (loadingTimeout) {
-                    clearTimeout(loadingTimeout);
-                    loadingTimeout = null;
+            if (!background) {
+                requestCount = Math.max(0, requestCount - 1);
+                if (requestCount === 0) {
+                    if (loadingTimeout) {
+                        clearTimeout(loadingTimeout);
+                        loadingTimeout = null;
+                    }
+                    hideLivewireLoader();
                 }
-                hideLivewireLoader();
             }
         });
 
         // Handle failed response
         fail(({ status, content, preventDefault }) => {
-            requestCount = Math.max(0, requestCount - 1);
-            if (requestCount === 0) {
-                if (loadingTimeout) {
-                    clearTimeout(loadingTimeout);
-                    loadingTimeout = null;
+            if (!background) {
+                requestCount = Math.max(0, requestCount - 1);
+                if (requestCount === 0) {
+                    if (loadingTimeout) {
+                        clearTimeout(loadingTimeout);
+                        loadingTimeout = null;
+                    }
+                    hideLivewireLoader();
                 }
-                hideLivewireLoader();
             }
             
             if (!content.includes("<script")) {

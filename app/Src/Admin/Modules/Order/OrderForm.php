@@ -3024,8 +3024,14 @@ class OrderForm extends Component
                         if (!empty($customNote) || !empty($customImages) || !empty($productIds) || $existingCustomProductId) {
                             $customImagePaths = [];
                             foreach ($customImages as $customImage) {
-                                if ($customImage instanceof \Illuminate\Http\UploadedFile) {
-                                    $customImagePaths[] = $customImage->store('orders/custom-products', 'public');
+                                // Livewire temporary uploads are not instances of UploadedFile but
+                                // they still expose a `store` method. Support both strings (already stored)
+                                // and any object that can be stored.
+                                if (is_object($customImage) && method_exists($customImage, 'store')) {
+                                    $storedPath = $customImage->store('orders/custom-products', 'public');
+                                    if (!empty($storedPath)) {
+                                        $customImagePaths[] = $storedPath;
+                                    }
                                 } elseif (is_string($customImage) && !empty($customImage)) {
                                     $customImagePaths[] = $customImage;
                                 }
