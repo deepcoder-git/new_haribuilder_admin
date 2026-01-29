@@ -97,13 +97,9 @@
                     <button type="button" class="btn btn-secondary" wire:click="closeRejectionDetailsModal" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
                         Close
                     </button>
-                    <button type="button" class="btn btn-primary" wire:click="saveRejectionDetails" wire:loading.attr="disabled" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
-                        <span wire:loading.remove wire:target="saveRejectionDetails">
+                    <button type="button" class="btn btn-primary" wire:click="saveRejectionDetails" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
+                        <span>
                             <i class="fa-solid fa-save me-2"></i>Save
-                        </span>
-                        <span wire:loading wire:target="saveRejectionDetails">
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            Saving...
                         </span>
                     </button>
                 </div>
@@ -138,7 +134,6 @@
                     @endphp
                     <button type="button"
                             wire:click="toggleSiteDropdown"
-                            wire:loading.attr="disabled"
                             @if($shouldDisableSiteFields) disabled @endif
                             class="form-control form-control-solid d-flex align-items-center justify-content-between @error('site_id') is-invalid @enderror"
                             style="height: 44px; text-align: left; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem 1rem; width: 100%;">
@@ -261,7 +256,6 @@
                     @endphp
                     <button type="button"
                             wire:click="toggleSiteManagerDropdown"
-                            wire:loading.attr="disabled"
                             @if($shouldDisableSiteFields || $this->shouldDisableSiteSupervisor) disabled @endif
                             class="form-control form-control-solid d-flex align-items-center justify-content-between @error('site_manager_id') is-invalid @enderror"
                             style="height: 44px; text-align: left; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem 1rem; width: 100%;">
@@ -853,7 +847,6 @@
                                                                         @endphp
                                                                         <button type="button"
                                                                                 wire:click="toggleProductDropdown({{ $index }})"
-                                                                                wire:loading.attr="disabled"
                                                                                 class="form-control form-control-solid d-flex align-items-center justify-content-between @error('orderProducts.' . $index . '.product_id') is-invalid @enderror"
                                                                                 style="height: 40px; text-align: left; background: white; border: 1px solid {{ $hasProductError ? '#ef4444' : '#e5e7eb' }}; border-radius: 0.5rem; padding: 0.5rem 1rem; min-width: 250px; width: 100%;">
                                                                             <span class="text-truncate" style="flex: 1; overflow: hidden; text-overflow: ellipsis;">
@@ -1084,7 +1077,6 @@
                                                             <div class="position-relative" style="width: 100%; z-index: auto; overflow: visible;">
                                                                 <button type="button"
                                                                         wire:click="toggleSupplierDropdown({{ $index }})"
-                                                                        wire:loading.attr="disabled"
                                                                         class="form-control form-control-solid d-flex align-items-center justify-content-between"
                                                                         style="height: 40px; text-align: left; background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; padding: 0.5rem 1rem; width: 100%;">
                                                                     <span class="text-truncate" style="flex: 1; overflow: hidden; text-overflow: ellipsis;">
@@ -1296,44 +1288,38 @@
                                                                 @if(!$isEditMode || $status === 'pending')
                                                                     <button type="button" 
                                                                             wire:click="removeProductRow({{ $index }})"
-                                                                            wire:loading.attr="disabled"
                                                                             wire:target="removeProductRow"
                                                                             onclick="if(!confirm('Are you sure you want to delete this product?')) { event.stopImmediatePropagation(); return false; }"
                                                                             class="btn btn-sm btn-icon btn-light-danger"
                                                                             title="Delete Custom Product"
                                                                             style="width: 32px; height: 32px; border-radius: 0.5rem; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                                                        <span wire:loading.remove wire:target="removeProductRow">
+                                                                        <span>
                                                                             <i class="fa-solid fa-trash" style="font-size: 0.875rem;"></i>
                                                                         </span>
-                                                                        <span wire:loading wire:target="removeProductRow" class="spinner-border spinner-border-sm" style="width: 0.875rem; height: 0.875rem;"></span>
                                                                     </button>
                                                                 @endif
                                                             @else
                                                                 @if(!$isEditMode || $status === 'pending')
                                                                     <button type="button" 
                                                                             wire:click="addProductRowToGroup('{{ $groupType }}')"
-                                                                            wire:loading.attr="disabled"
                                                                             wire:target="addProductRowToGroup"
                                                                             class="btn btn-sm btn-icon btn-light-primary"
                                                                             title="Add Product to {{ $groupLabels[$groupType] }}"
                                                                             style="width: 32px; height: 32px; border-radius: 0.5rem; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                                                        <span wire:loading.remove wire:target="addProductRowToGroup">
+                                                                        <span>
                                                                             <i class="fa-solid fa-plus" style="font-size: 0.875rem;"></i>
                                                                         </span>
-                                                                        <span wire:loading wire:target="addProductRowToGroup" class="spinner-border spinner-border-sm" style="width: 0.875rem; height: 0.875rem;"></span>
                                                                     </button>
                                                                     <button type="button" 
                                                                             wire:click="removeProductRow({{ $index }})"
-                                                                            wire:loading.attr="disabled"
                                                                             wire:target="removeProductRow"
                                                                             onclick="if(!confirm('Are you sure you want to delete this product?')) { event.stopImmediatePropagation(); return false; }"
                                                                             class="btn btn-sm btn-icon btn-light-danger"
                                                                             title="Delete Row"
                                                                             style="width: 32px; height: 32px; border-radius: 0.5rem; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                                                        <span wire:loading.remove wire:target="removeProductRow">
+                                                                        <span>
                                                                             <i class="fa-solid fa-trash" style="font-size: 0.875rem;"></i>
                                                                         </span>
-                                                                        <span wire:loading wire:target="removeProductRow" class="spinner-border spinner-border-sm" style="width: 0.875rem; height: 0.875rem;"></span>
                                                                     </button>
                                                                 @endif
                                                             @endif
@@ -1455,7 +1441,6 @@
                                                         @endphp
                                                         <button type="button"
                                                                 wire:click="toggleProductDropdown({{ $index }})"
-                                                                wire:loading.attr="disabled"
                                                                 class="form-control form-control-solid d-flex align-items-center justify-content-between @error('orderProducts.' . $index . '.product_id') is-invalid @enderror"
                                                                 style="height: 40px; text-align: left; background: white; border: 1px solid {{ $hasProductError ? '#ef4444' : '#e5e7eb' }}; border-radius: 0.5rem; padding: 0.5rem 1rem; min-width: 250px; width: 100%;">
                                                             <span class="text-truncate" style="flex: 1; overflow: hidden; text-overflow: ellipsis;">
@@ -1789,15 +1774,13 @@
                                             @if($loop->last && (!$isEditMode || ($isEditMode && $status === 'pending')))
                                                 <button type="button" 
                                                         wire:click="addProductRow"
-                                                        wire:loading.attr="disabled"
                                                         wire:target="addProductRow"
                                                         class="btn btn-sm btn-icon btn-light-primary"
                                                         title="Add Row"
                                                         style="width: 32px; height: 32px; border-radius: 0.5rem; padding: 0; display: flex; align-items: center; justify-content: center;">
-                                                    <span wire:loading.remove wire:target="addProductRow">
+                                                    <span>
                                                         <i class="fa-solid fa-plus" style="font-size: 0.875rem;"></i>
                                                     </span>
-                                                    <span wire:loading wire:target="addProductRow" class="spinner-border spinner-border-sm" style="width: 0.875rem; height: 0.875rem;"></span>
                                                 </button>
                                             @endif
                                             @if(!$isEditMode || ($status ?? 'pending') === 'pending')
@@ -1840,16 +1823,14 @@
                 <button type="button" 
                         wire:click="cancel" 
                         class="btn btn-light fw-semibold px-4"
-                        style="height: 44px; border-radius: 0.5rem; min-width: 100px;"
-                        wire:loading.attr="disabled">
+                        style="height: 44px; border-radius: 0.5rem; min-width: 100px;">
                     Cancel
                 </button>
                 <button type="button" 
                         wire:click="save" 
                         class="btn btn-primary fw-semibold px-4 d-flex align-items-center justify-content-center" 
-                        style="background: #1e3a8a; border: none; height: 44px; border-radius: 0.5rem; min-width: 120px; color: #ffffff;"
-                        wire:loading.attr="disabled">
-                    <span wire:target="save" class="d-flex align-items-center">
+                        style="background: #1e3a8a; border: none; height: 44px; border-radius: 0.5rem; min-width: 120px; color: #ffffff;">
+                    <span class="d-flex align-items-center">
                         <i class="fa-solid fa-{{ $isEditMode ? 'check' : 'plus' }} me-2"></i>
                         {{ $isEditMode ? 'Update' : 'Add Order' }}
                     </span>
@@ -1910,13 +1891,9 @@
                         <button type="button" class="btn btn-light-secondary" wire:click="closeInTransitModal" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
                             Cancel
                         </button>
-                        <button type="button" class="btn btn-primary" wire:click="saveInTransitDetails" wire:loading.attr="disabled" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem; background: #1e3a8a; border: none;">
-                            <span wire:loading.remove wire:target="saveInTransitDetails">
+                        <button type="button" class="btn btn-primary" wire:click="saveInTransitDetails" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem; background: #1e3a8a; border: none;">
+                            <span>
                                 <i class="fa-solid fa-check me-2"></i>Save Details
-                            </span>
-                            <span wire:loading wire:target="saveInTransitDetails">
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Saving...
                             </span>
                         </button>
                     </div>
@@ -1996,28 +1973,18 @@
                         <button type="button" 
                                 class="btn btn-light-secondary" 
                                 wire:click="closeProductOutForDeliveryModal" 
-                                wire:loading.attr="disabled"
                                 style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
-                            <span wire:loading.remove wire:target="closeProductOutForDeliveryModal">
+                            <span>
                                 Cancel
-                            </span>
-                            <span wire:loading wire:target="closeProductOutForDeliveryModal">
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Cancelling...
                             </span>
                         </button>
                         <button type="button" 
                                 class="btn btn-primary" 
                                 wire:click="saveProductOutForDeliveryDetails" 
-                                wire:loading.attr="disabled"
                                 wire:target="saveProductOutForDeliveryDetails"
                                 style="border-radius: 0.5rem; padding: 0.625rem 1.25rem; background: #1e3a8a; border: none; min-width: 140px;">
-                            <span wire:loading.remove wire:target="saveProductOutForDeliveryDetails">
+                            <span>
                                 <i class="fa-solid fa-check me-2"></i>Save Details
-                            </span>
-                            <span wire:loading wire:target="saveProductOutForDeliveryDetails">
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Saving...
                             </span>
                         </button>
                     </div>
@@ -2097,28 +2064,18 @@
                         <button type="button" 
                                 class="btn btn-light-secondary" 
                                 wire:click="closeProductInTransitModal" 
-                                wire:loading.attr="disabled"
                                 style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
-                            <span wire:loading.remove wire:target="closeProductInTransitModal">
+                            <span>
                                 Cancel
-                            </span>
-                            <span wire:loading wire:target="closeProductInTransitModal">
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Cancelling...
                             </span>
                         </button>
                         <button type="button" 
                                 class="btn btn-primary" 
                                 wire:click="saveProductInTransitDetails" 
-                                wire:loading.attr="disabled"
                                 wire:target="saveProductInTransitDetails"
                                 style="border-radius: 0.5rem; padding: 0.625rem 1.25rem; background: #1e3a8a; border: none; min-width: 140px;">
-                            <span wire:loading.remove wire:target="saveProductInTransitDetails">
+                            <span>
                                 <i class="fa-solid fa-check me-2"></i>Save Details
-                            </span>
-                            <span wire:loading wire:target="saveProductInTransitDetails">
-                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                Saving...
                             </span>
                         </button>
                     </div>
@@ -2226,16 +2183,13 @@
                                                     </div>
                                                 @endforeach
                                                 @if($customProductPopupHasMore)
-                                                    <div class="text-center py-2" wire:loading.remove wire:target="loadMoreCustomProductPopup">
+                                                    <div class="text-center py-2">
                                                         <button type="button" 
                                                                 wire:click="loadMoreCustomProductPopup"
                                                                 class="btn btn-sm btn-link text-primary"
                                                                 style="font-size: 0.8125rem;">
                                                             Load more...
                                                         </button>
-                                                    </div>
-                                                    <div class="text-center py-2" wire:loading wire:target="loadMoreCustomProductPopup">
-                                                        <span class="spinner-border spinner-border-sm" role="status"></span>
                                                     </div>
                                                 @endif
                                             @endif
@@ -2291,15 +2245,13 @@
                                                     <td style="padding: 0.75rem; text-align: center;">
                                                         <button type="button" 
                                                                 wire:click="removeProductFromCustomPopup({{ $popupIndex }})"
-                                                                wire:loading.attr="disabled"
                                                                 wire:target="removeProductFromCustomPopup"
                                                                 onclick="if(!confirm('Are you sure you want to delete this product?')) { event.stopImmediatePropagation(); return false; }"
                                                                 class="btn btn-sm btn-icon btn-light-danger"
                                                                 title="Remove">
-                                                            <span wire:loading.remove wire:target="removeProductFromCustomPopup">
+                                                            <span>
                                                                 <i class="fa-solid fa-trash" style="font-size: 0.875rem;"></i>
                                                             </span>
-                                                            <span wire:loading wire:target="removeProductFromCustomPopup" class="spinner-border spinner-border-sm" style="width: 0.875rem; height: 0.875rem;"></span>
                                                         </button>
                                                     </td>
                                                 </tr>
@@ -2464,13 +2416,9 @@
                         <button type="button" class="btn btn-light-secondary" wire:click="closeCustomProductModal" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
                             Cancel
                         </button>
-                        <button type="button" class="btn btn-primary" wire:click="saveCustomProductFromPopup" wire:loading.attr="disabled" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
-                            <span wire:loading.remove wire:target="saveCustomProductFromPopup">
+                        <button type="button" class="btn btn-primary" wire:click="saveCustomProductFromPopup" style="border-radius: 0.5rem; padding: 0.625rem 1.25rem;">
+                            <span>
                                 <i class="fa-solid fa-check me-2"></i>Save
-                            </span>
-                            <span wire:loading wire:target="saveCustomProductFromPopup">
-                                <span class="spinner-border spinner-border-sm me-2"></span>
-                                Saving...
                             </span>
                         </button>
                     </div>
