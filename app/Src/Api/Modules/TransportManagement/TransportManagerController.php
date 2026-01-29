@@ -466,11 +466,12 @@ class TransportManagerController extends Controller
                 
                 // Main status: in transit
                 $updateData['status'] = OrderStatusEnum::InTransit->value;
+                $updateData['product_status']['workshop'] = OrderStatusEnum::InTransit->value;
             }
             if($deliveryStatus === 'outfordelivery') {
                 // Main status: out for delivery
                 $updateData['status'] = OrderStatusEnum::OutOfDelivery->value;
-
+                $updateData['product_status']['workshop'] = OrderStatusEnum::OutOfDelivery->value;
                 /**
                  * BUSINESS RULE:
                  * - For warehouse/custom products, stock should be deducted when
@@ -494,13 +495,7 @@ class TransportManagerController extends Controller
 
                 // All delivered orders now use unified 'delivery' status (no separate 'completed' status)
                 $updateData['status'] = OrderStatusEnum::Delivery->value;
-                $updateData['is_completed'] = true;
-                $updateData['completed_at'] = now();
-                $updateData['completed_by'] = $user->id;
-
-                // Check if order should be marked as completed (for mixed orders)
-                Order::syncMixedOrderCompletion($order);
-
+                $updateData['product_status']['workshop'] = OrderStatusEnum::Delivery->value;
             }
 
             // Update driver name if provided
