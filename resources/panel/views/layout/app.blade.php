@@ -84,9 +84,6 @@
       data-kt-app-sidebar-push-toolbar="true" data-kt-app-sidebar-push-footer="true" class="app-default">
 <script src="{{ mix('build/panel/js/theme-mode.js') }}"></script>
 @include('panel::partials._page-loader')
-<div id="livewire-loading-overlay" class="livewire-loading-overlay">
-    <div class="livewire-loading-spinner"></div>
-</div>
 <div class="d-flex flex-column flex-root app-root" id="kt_app_root">
     <div class="app-page  flex-column flex-column-fluid" id="kt_app_page">
         @include('panel::partials._header')
@@ -106,96 +103,11 @@
 @include('panel::partials._scrolltop')
 <script src="{{ mix('build/panel/vendors/plugins.bundle.js') }}"></script>
 <script src="{{ mix('build/panel/vendors/scripts.bundle.js') }}"></script>
-{{-- <script>
-    // System Loader Management
-    const SystemLoader = {
-        loader: null,
-        livewireOverlay: null,
-        
-        init() {
-            if (!this.loader) {
-                this.loader = document.getElementById('system-loader');
-            }
-            if (!this.livewireOverlay) {
-                this.livewireOverlay = document.getElementById('livewire-loading-overlay');
-            }
-        },
-        
-        
-        hidePageLoader() {
-            if (this.loader) {
-                this.loader.classList.add('hide');
-            }
-        },
-        
-        showLivewireLoader() {
-            if (this.livewireOverlay) {
-                this.livewireOverlay.classList.add('show');
-            }
-        },
-        
-        hideLivewireLoader() {
-            if (this.livewireOverlay) {
-                this.livewireOverlay.classList.remove('show');
-            }
-        }
-    };
-
-    // Hide page loader when DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
-        SystemLoader.init();
-        // Slight delay to show the loader animation
-        setTimeout(() => {
-            SystemLoader.hidePageLoader();
-        }, 300);
-        
-        if (typeof KTApp !== 'undefined' && KTApp.hidePageLoading) {
-            KTApp.hidePageLoading();
-        }
-    });
-
-    // Also hide on window load as fallback
-    window.addEventListener('load', function() {
-        SystemLoader.init();
-        SystemLoader.hidePageLoader();
-        
-        if (typeof KTApp !== 'undefined' && KTApp.hidePageLoading) {
-            KTApp.hidePageLoading();
-        }
-    });
-</script> --}}
 <script src="{{ mix('build/panel/js/module-theme.js') }}"></script>
 <script src="{{ mix('build/panel/js/select2-init.js') }}"></script>
 @livewireScripts
 <!-- Toastr JS - Load after Livewire -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script>
-    // Configure Toastr - must be after toastr.js loads
-    document.addEventListener('DOMContentLoaded', function() {
-        if (typeof toastr !== 'undefined') {
-            toastr.options = {
-                "closeButton": true,
-                "debug": false,
-                "newestOnTop": true,
-                "progressBar": true,
-                "positionClass": "toast-top-right",
-                "preventDuplicates": false,
-                "onclick": null,
-                "showDuration": "300",
-                "hideDuration": "1000",
-                "timeOut": "5000",
-                "extendedTimeOut": "1000",
-                "showEasing": "swing",
-                "hideEasing": "linear",
-                "showMethod": "fadeIn",
-                "hideMethod": "fadeOut"
-            };
-            console.log('Toastr configured successfully');
-        } else {
-            console.error('Toastr failed to load');
-        }
-    });
-</script>
 <script src="{{mix('build/panel/js/livewire.js')}}"></script>
 @stack('footer')
 </body>
