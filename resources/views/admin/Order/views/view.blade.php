@@ -145,33 +145,6 @@
                             <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
                         </span>
                     </div>
-                    <div class="mb-2" style="line-height: 1.8;">
-                        <span class="text-gray-600 fw-semibold fs-6" style="display: inline-block; width: 160px; text-align: left;">Delivery Status</span>
-                        <span class="text-gray-600" style="margin: 0 8px;">:</span>
-                        <span class="ms-2">
-                            @php
-                                // orders.delivery_status column was removed; use main status enum/value instead
-                                $deliveryStatus = $order->status?->value ?? ($order->status ?? 'pending');
-                                $badgeClass = match($deliveryStatus) {
-                                    'pending' => 'badge-light-warning',
-                                    'approved' => 'badge-light-success',
-                                    'in_transit' => 'badge-light-primary',
-                                    'delivery' => 'badge-light-info',
-                                    'rejected' => 'badge-light-danger',
-                                    'outfordelivery' => 'badge-light-primary',
-                                    default => 'badge-light-secondary',
-                                };
-                                $statusLabel = match($deliveryStatus) {
-                                    'in_transit' => 'In Transit',
-                                    'approved' => 'Approved',
-                                    'delivery' => 'Delivery',
-                                    'outfordelivery' => 'Out of Delivery',
-                                    default => ucfirst($deliveryStatus),
-                                };
-                            @endphp
-                            <span class="badge {{ $badgeClass }}">{{ $statusLabel }}</span>
-                        </span>
-                    </div>
 
                     @if($order->drop_location)
                     <div class="mb-2" style="line-height: 1.8;">
@@ -231,111 +204,195 @@
 
                     @if($hasAnyProducts)
                     <div class="mb-4">
-                        <h5 class="mb-3 text-gray-800 fw-bold">Products</h5>
-                        <div class="table-responsive">
-                            <table class="table mb-0" style="margin-bottom: 0; table-layout: fixed; border: none; width: 100%;">
-                                <thead style="background: #f9fafb;">
-                                    <tr>
-                                        <th style="width: 25%; padding: 0.5rem; font-size: 0.875rem; font-weight: 600; text-align: left; vertical-align: middle; border: none;">Product</th>
-                                        <th style="width: 12%; padding: 0.5rem; font-size: 0.875rem; font-weight: 600; text-align: center; vertical-align: middle; border: none;">Unit</th>
-                                        <th style="width: 15%; padding: 0.5rem; font-size: 0.875rem; font-weight: 600; text-align: center; vertical-align: middle; border: none;">Quantity</th>
-                                        <th style="width: 15%; padding: 0.5rem; font-size: 0.875rem; font-weight: 600; text-align: center; vertical-align: middle; border: none;">Image</th>
-                                        <th style="width: 18%; padding: 0.5rem; font-size: 0.875rem; font-weight: 600; text-align: center; vertical-align: middle; border: none;">Store</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @if($hardwareProducts->count() > 0)
+                        <h5 class="mb-3 text-gray-800 fw-bold">Materials</h5>
+                        
+                        @if($hardwareProducts->count() > 0)
+                        <div class="mb-4" style="border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06); background: #ffffff;">
+                            <div style="background: #dbeafe; padding: 0.75rem 1rem; color: #1f2937; font-weight: 600; font-size: 0.9375rem; border-radius: 0.75rem 0.75rem 0 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 2px solid rgba(0,0,0,0.1);">
+                                <span style="display: flex; align-items: center; gap: 0.5rem; color: #1f2937;">
+                                    <i class="fa-solid fa-boxes" style="font-size: 1rem; color: #3b82f6;"></i>
+                                    <span style="color: #1f2937; font-weight: 600;">Hardware</span>
+                                </span>
+                                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                    <label style="margin: 0; font-size: 0.8125rem; font-weight: 600; color: #374151; white-space: nowrap;">
+                                        Order Status:
+                                    </label>
+                                    @php
+                                        // Get product_status array directly to check 'hardware' key
+                                        $productStatusArray = $order->product_status ?? [];
+                                        $hardwareStatus = $productStatusArray['hardware'] ?? null;
+                                        
+                                        // Use hardware status if available, otherwise default to pending
+                                        if ($hardwareStatus !== null && $hardwareStatus !== '' && $hardwareStatus !== 'null') {
+                                            $statusValue = $hardwareStatus;
+                                        } else {
+                                            $statusValue = 'pending';
+                                        }
+                                        
+                                        $productStatusColors = \App\Utility\Enums\ProductStatusEnum::getAllColors();
+                                        $productStatusTextColors = \App\Utility\Enums\ProductStatusEnum::getAllTextColors();
+                                        $statusIcons = \App\Utility\Enums\ProductStatusEnum::getAllIcons();
+                                        $productStatusLabels = \App\Utility\Enums\ProductStatusEnum::getAllLabels();
+                                        $currentTextColor = $productStatusTextColors[$statusValue] ?? '#374151';
+                                        $borderColor = $currentTextColor . '33';
+                                    @endphp
+                                    <div class="d-inline-flex align-items-center gap-2"
+                                         style="background-color: {{ $productStatusColors[$statusValue] ?? '#f3f4f6' }}; color: {{ $currentTextColor }}; border: 2px solid {{ $borderColor }}; min-width: 180px; font-size: 0.875rem; font-weight: 600; padding: 0.5rem 0.875rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="fa-solid {{ $statusIcons[$statusValue] ?? 'fa-clock' }}" style="font-size: 0.875rem;"></i>
+                                        <span>{{ $productStatusLabels[$statusValue] ?? ucfirst($statusValue) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive" style="overflow: visible;">
+                                <table class="table table-bordered mb-0" style="margin-bottom: 0; background: #ffffff;">
+                                    <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <tr>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 80px;">Image</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; min-width: 250px; width: 35%;">Material</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; width: 120px;">Category</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; width: 70px;">Unit</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 120px;">Quantity</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 80px;">Store</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         @foreach($hardwareProducts as $index => $product)
                                         <tr style="vertical-align: middle;">
-                                            <td style="padding: 0.5rem; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; border: none; text-align: left;">
-                                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.3; max-width: 150px; word-break: break-word;">
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                @php
+                                                    $firstImage = $product->productImages->first();
+                                                    $imageUrl = $firstImage ? $firstImage->image_url : ($product->image ? \Storage::url($product->image) : null);
+                                                @endphp
+                                                @if($imageUrl)
+                                                    <img src="{{ $imageUrl }}" 
+                                                         alt="{{ $product->product_name ?? $product->name ?? 'Material' }}"
+                                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block; margin: 0 auto;"
+                                                         class="product-image-zoom"
+                                                         data-image-url="{{ $imageUrl }}"
+                                                         data-product-name="{{ $product->product_name ?? $product->name ?? 'Material' }}">
+                                                @else
+                                                    <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                                        <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.4;">
                                                     {{ $product->product_name ?? $product->name ?? 'N/A' }}
                                                 </div>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 500; color: #374151; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                                    <span style="text-align: center; width: 100%;">{{ $product->unit_type ?? '-' }}</span>
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; color: #374151;">{{ $product->category->name ?? '-' }}</span>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                                <div style="background: #f0f9ff; border: 1px solid #3b82f6; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 600; color: #1e40af; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                                    <span style="text-align: center; width: 100%;">{{ formatQty($product->pivot->quantity ?? 0) }}</span>
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; color: #374151;">{{ $product->unit_type ?? '-' }}</span>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none;">
-                                                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                                    @php
-                                                        $firstImage = $product->productImages->first();
-                                                        $imageUrl = $firstImage ? $firstImage->image_url : ($product->image ? \Storage::url($product->image) : null);
-                                                    @endphp
-                                                    @if($imageUrl)
-                                                        <img src="{{ $imageUrl }}" 
-                                                             alt="{{ $product->product_name ?? $product->name ?? 'Product' }}"
-                                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block;"
-                                                             class="product-image-zoom"
-                                                             data-image-url="{{ $imageUrl }}"
-                                                             data-product-name="{{ $product->product_name ?? $product->name ?? 'Product' }}">
-                                                    @else
-                                                        <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                                        </div>
-                                                    @endif
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">{{ formatQty($product->pivot->quantity ?? 0) }}</span>
                                             </td>
-                                            @if($loop->first)
-                                            <td rowspan="{{ $hardwareProducts->count() }}" style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none; border-left: 2px solid #dc3545;">
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
                                                 <span class="badge" style="background: #dc3545; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Hardware</span>
                                             </td>
-                                            @endif
                                         </tr>
                                         @endforeach
-                                    @endif
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        @endif
 
-                                    @if($warehouseRowCount > 0)
+                        @if($warehouseRowCount > 0)
+                        <div class="mb-4" style="border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06); background: #ffffff;">
+                            <div style="background: #d1fae5; padding: 0.75rem 1rem; color: #1f2937; font-weight: 600; font-size: 0.9375rem; border-radius: 0.75rem 0.75rem 0 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 2px solid rgba(0,0,0,0.1);">
+                                <span style="display: flex; align-items: center; gap: 0.5rem; color: #1f2937;">
+                                    <i class="fa-solid fa-boxes" style="font-size: 1rem; color: #10b981;"></i>
+                                    <span style="color: #1f2937; font-weight: 600;">Workshop (Custom)</span>
+                                </span>
+                                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                    <label style="margin: 0; font-size: 0.8125rem; font-weight: 600; color: #374151; white-space: nowrap;">
+                                        Order Status:
+                                    </label>
+                                    @php
+                                        // Get product_status array directly to check both 'workshop' and 'custom' keys
+                                        $productStatusArray = $order->product_status ?? [];
+                                        $workshopStatus = $productStatusArray['workshop'] ?? null;
+                                        $customStatus = $productStatusArray['custom'] ?? null;
+                                        
+                                        // Use workshop status if available, otherwise fall back to custom status
+                                        // This matches the logic in calculateOrderStatusFromProductStatuses()
+                                        if ($workshopStatus !== null && $workshopStatus !== '' && $workshopStatus !== 'null') {
+                                            $statusValue = $workshopStatus;
+                                        } elseif ($customStatus !== null && $customStatus !== '' && $customStatus !== 'null') {
+                                            $statusValue = $customStatus;
+                                        } else {
+                                            $statusValue = 'pending';
+                                        }
+                                        
+                                        $productStatusColors = \App\Utility\Enums\ProductStatusEnum::getAllColors();
+                                        $productStatusTextColors = \App\Utility\Enums\ProductStatusEnum::getAllTextColors();
+                                        $statusIcons = \App\Utility\Enums\ProductStatusEnum::getAllIcons();
+                                        $productStatusLabels = \App\Utility\Enums\ProductStatusEnum::getAllLabels();
+                                        $currentTextColor = $productStatusTextColors[$statusValue] ?? '#374151';
+                                        $borderColor = $currentTextColor . '33';
+                                    @endphp
+                                    <div class="d-inline-flex align-items-center gap-2"
+                                         style="background-color: {{ $productStatusColors[$statusValue] ?? '#f3f4f6' }}; color: {{ $currentTextColor }}; border: 2px solid {{ $borderColor }}; min-width: 180px; font-size: 0.875rem; font-weight: 600; padding: 0.5rem 0.875rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="fa-solid {{ $statusIcons[$statusValue] ?? 'fa-clock' }}" style="font-size: 0.875rem;"></i>
+                                        <span>{{ $productStatusLabels[$statusValue] ?? ucfirst($statusValue) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive" style="overflow: visible;">
+                                <table class="table table-bordered mb-0" style="margin-bottom: 0; background: #ffffff;">
+                                    <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <tr>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 80px;">Image</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; min-width: 250px; width: 35%;">Material</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; width: 120px;">Category</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; width: 70px;">Unit</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 120px;">Quantity</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 80px;">Store</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         @php $isFirstWarehouse = true; @endphp
                                         @foreach($warehouseProducts as $index => $product)
                                         <tr style="vertical-align: middle;">
-                                            <td style="padding: 0.5rem; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; border: none; text-align: left;">
-                                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.3; max-width: 150px; word-break: break-word;">
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                @php
+                                                    $firstImage = $product->productImages->first();
+                                                    $imageUrl = $firstImage ? $firstImage->image_url : ($product->image ? \Storage::url($product->image) : null);
+                                                @endphp
+                                                @if($imageUrl)
+                                                    <img src="{{ $imageUrl }}" 
+                                                         alt="{{ $product->product_name ?? $product->name ?? 'Material' }}"
+                                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block; margin: 0 auto;"
+                                                         class="product-image-zoom"
+                                                         data-image-url="{{ $imageUrl }}"
+                                                         data-product-name="{{ $product->product_name ?? $product->name ?? 'Material' }}">
+                                                @else
+                                                    <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                                        <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.4;">
                                                     {{ $product->product_name ?? $product->name ?? 'N/A' }}
                                                 </div>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 500; color: #374151; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                                    <span style="text-align: center; width: 100%;">{{ $product->unit_type ?? '-' }}</span>
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; color: #374151;">{{ $product->category->name ?? '-' }}</span>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                                <div style="background: #f0f9ff; border: 1px solid #3b82f6; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 600; color: #1e40af; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                                    <span style="text-align: center; width: 100%;">{{ formatQty($product->pivot->quantity ?? 0) }}</span>
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; color: #374151;">{{ $product->unit_type ?? '-' }}</span>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none;">
-                                                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                                    @php
-                                                        $firstImage = $product->productImages->first();
-                                                        $imageUrl = $firstImage ? $firstImage->image_url : ($product->image ? \Storage::url($product->image) : null);
-                                                    @endphp
-                                                    @if($imageUrl)
-                                                        <img src="{{ $imageUrl }}" 
-                                                             alt="{{ $product->product_name ?? $product->name ?? 'Product' }}"
-                                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block;"
-                                                             class="product-image-zoom"
-                                                             data-image-url="{{ $imageUrl }}"
-                                                             data-product-name="{{ $product->product_name ?? $product->name ?? 'Product' }}">
-                                                    @else
-                                                        <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                                        </div>
-                                                    @endif
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">{{ formatQty($product->pivot->quantity ?? 0) }}</span>
                                             </td>
-                                            @if($isFirstWarehouse)
-                                            <td rowspan="{{ $warehouseRowCount }}" style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none; border-left: 2px solid #0d6efd;">
-                                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">workshop</span>
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Workshop</span>
                                             </td>
-                                            @php $isFirstWarehouse = false; @endphp
-                                            @endif
                                         </tr>
                                         @endforeach
                                         @foreach($customProducts as $index => $customProduct)
@@ -379,88 +436,82 @@
                         
                         {{-- Custom Product Row --}}
                         <tr style="vertical-align: middle;">
-                            <td style="padding: 0.5rem; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; border: none; text-align: left;">
-                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.3; max-width: 150px; word-break: break-word;">
-                                    {{ $customProduct->custom_note ?? 'Custom Product' }}
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                @php
+                                    $customImages = $customProduct->custom_images ?? [];
+                                    $firstCustomImage = !empty($customImages) ? $customImages[0] : null;
+                                    $customImageUrl = $firstCustomImage ? \Storage::url($firstCustomImage) : null;
+                                @endphp
+                                @if($customImageUrl)
+                                    <img src="{{ $customImageUrl }}" 
+                                         alt="Custom Material"
+                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block; margin: 0 auto;"
+                                         class="product-image-zoom"
+                                         data-image-url="{{ $customImageUrl }}"
+                                         data-product-name="Custom Material">
+                                @else
+                                    <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                        <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.4;">
+                                    {{ $customProduct->custom_note ?? 'Custom Material' }}
                                 </div>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 500; color: #374151; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                    <span style="text-align: center; width: 100%;">{{ $customProduct->unit->name ?? '-' }}</span>
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; color: #374151;">-</span>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                <div style="background: #f0f9ff; border: 1px solid #3b82f6; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 600; color: #1e40af; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                    <span style="text-align: center; width: 100%;">{{ formatQty($customProduct->quantity ?? 0) }}</span>
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; color: #374151;">{{ $customProduct->unit->name ?? '-' }}</span>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none;">
-                                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                    @php
-                                        $customImages = $customProduct->custom_images ?? [];
-                                        $firstCustomImage = !empty($customImages) ? $customImages[0] : null;
-                                        $customImageUrl = $firstCustomImage ? \Storage::url($firstCustomImage) : null;
-                                    @endphp
-                                    @if($customImageUrl)
-                                        <img src="{{ $customImageUrl }}" 
-                                             alt="Custom Product"
-                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block;"
-                                             class="product-image-zoom"
-                                             data-image-url="{{ $customImageUrl }}"
-                                             data-product-name="Custom Product">
-                                    @else
-                                        <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                        </div>
-                                    @endif
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">{{ formatQty($customProduct->quantity ?? 0) }}</span>
                             </td>
-                            @if($isFirstWarehouse)
-                            <td rowspan="{{ $warehouseRowCount }}" style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none; border-left: 2px solid #0d6efd;">
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
                                 <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Workshop</span>
                             </td>
-                            @php $isFirstWarehouse = false; @endphp
-                            @endif
                         </tr>
                         
                         {{-- Connected Products (from product_ids) --}}
                         @foreach($connectedProducts as $connectedProduct)
                         <tr style="vertical-align: middle; background: #f9fafb;">
-                            <td style="padding: 0.5rem; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; border: none; text-align: left; padding-left: 2rem;">
-                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.3; max-width: 150px; word-break: break-word;">
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                @php
+                                    $firstImage = $connectedProduct->productImages->first();
+                                    $imageUrl = $firstImage ? $firstImage->image_url : ($connectedProduct->image ? \Storage::url($connectedProduct->image) : null);
+                                @endphp
+                                @if($imageUrl)
+                                    <img src="{{ $imageUrl }}" 
+                                         alt="{{ $connectedProduct->product_name }}"
+                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block; margin: 0 auto;"
+                                         class="product-image-zoom"
+                                         data-image-url="{{ $imageUrl }}"
+                                         data-product-name="{{ $connectedProduct->product_name }}">
+                                @else
+                                    <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                        <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.4; padding-left: 2rem;">
                                     <i class="fa-solid fa-link me-1" style="font-size: 0.7rem; color: #6b7280;"></i>{{ $connectedProduct->product_name }}
                                     <span class="badge badge-light-info ms-1" style="font-size: 0.65rem;">Connected</span>
                                 </div>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 500; color: #374151; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                    <span style="text-align: center; width: 100%;">{{ $connectedProduct->unit_type ?? '-' }}</span>
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; color: #374151;">{{ $connectedProduct->category->name ?? '-' }}</span>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                <div style="background: #f0f9ff; border: 1px solid #3b82f6; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 600; color: #1e40af; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                    <span style="text-align: center; width: 100%;">-</span>
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; color: #374151;">{{ $connectedProduct->unit_type ?? '-' }}</span>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none;">
-                                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                    @php
-                                        $firstImage = $connectedProduct->productImages->first();
-                                        $imageUrl = $firstImage ? $firstImage->image_url : ($connectedProduct->image ? \Storage::url($connectedProduct->image) : null);
-                                    @endphp
-                                    @if($imageUrl)
-                                        <img src="{{ $imageUrl }}" 
-                                             alt="{{ $connectedProduct->product_name }}"
-                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block;"
-                                             class="product-image-zoom"
-                                             data-image-url="{{ $imageUrl }}"
-                                             data-product-name="{{ $connectedProduct->product_name }}">
-                                    @else
-                                        <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                        </div>
-                                    @endif
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">-</span>
+                            </td>
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Workshop</span>
                             </td>
                         </tr>
                         @endforeach
@@ -495,8 +546,36 @@
                             }
                         @endphp
                         <tr style="vertical-align: middle; background: #fef3f2;">
-                            <td style="padding: 0.5rem; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; border: none; text-align: left; padding-left: 3rem;">
-                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.3; max-width: 150px; word-break: break-word;">
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                @if($materialId)
+                                    @php
+                                        $materialProduct = \App\Models\Product::with('productImages')->find($materialId);
+                                        $materialImageUrl = null;
+                                        if ($materialProduct) {
+                                            $firstMaterialImage = $materialProduct->productImages->first();
+                                            $materialImageUrl = $firstMaterialImage ? $firstMaterialImage->image_url : ($materialProduct->image ? \Storage::url($materialProduct->image) : null);
+                                        }
+                                    @endphp
+                                    @if($materialImageUrl)
+                                        <img src="{{ $materialImageUrl }}" 
+                                             alt="{{ $materialName }}"
+                                             style="width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block; margin: 0 auto;"
+                                             class="product-image-zoom"
+                                             data-image-url="{{ $materialImageUrl }}"
+                                             data-product-name="{{ $materialName }}">
+                                    @else
+                                        <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                        </div>
+                                    @endif
+                                @else
+                                    <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                        <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                    </div>
+                                @endif
+                            </td>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.4; padding-left: 3rem;">
                                     <i class="fa-solid fa-box me-1" style="font-size: 0.7rem; color: #ef4444;"></i>{{ $materialName }}
                                     <span class="badge badge-light-danger ms-1" style="font-size: 0.65rem;">Material</span>
                                     @if($measurementsDisplay)
@@ -506,115 +585,127 @@
                                     @endif
                                 </div>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 500; color: #374151; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                    <span style="text-align: center; width: 100%;">{{ $materialUnit }}</span>
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; color: #374151;">{{ $materialCategory ?? '-' }}</span>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                <div style="background: #f0f9ff; border: 1px solid #3b82f6; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 600; color: #1e40af; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                    <span style="text-align: center; width: 100%;">{{ formatQty($materialQty) }}</span>
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; color: #374151;">{{ $materialUnit }}</span>
                             </td>
-                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none;">
-                                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                    @if($materialId)
-                                        @php
-                                            $materialProduct = \App\Models\Product::with('productImages')->find($materialId);
-                                            $materialImageUrl = null;
-                                            if ($materialProduct) {
-                                                $firstMaterialImage = $materialProduct->productImages->first();
-                                                $materialImageUrl = $firstMaterialImage ? $firstMaterialImage->image_url : ($materialProduct->image ? \Storage::url($materialProduct->image) : null);
-                                            }
-                                        @endphp
-                                        @if($materialImageUrl)
-                                            <img src="{{ $materialImageUrl }}" 
-                                                 alt="{{ $materialName }}"
-                                                 style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block;"
-                                                 class="product-image-zoom"
-                                                 data-image-url="{{ $materialImageUrl }}"
-                                                 data-product-name="{{ $materialName }}">
-                                        @else
-                                            <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                                <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                            </div>
-                                        @endif
-                                    @else
-                                        <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                        </div>
-                                    @endif
-                                </div>
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">{{ formatQty($materialQty) }}</span>
+                            </td>
+                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                <span class="badge" style="background: #0d6efd; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">Workshop</span>
                             </td>
                         </tr>
                         @endforeach
                         @endforeach
-                                    @endif
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        @endif
 
-                                    @if($lpoProducts->count() > 0)
+                        @if($lpoProducts->count() > 0)
+                        <div class="mb-4" style="border: 1px solid #e5e7eb; border-radius: 0.75rem; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 1px 3px rgba(0,0,0,0.06); background: #ffffff;">
+                            <div style="background: #e9d5ff; padding: 0.75rem 1rem; color: #1f2937; font-weight: 600; font-size: 0.9375rem; border-radius: 0.75rem 0.75rem 0 0; display: flex; align-items: center; justify-content: space-between; gap: 1rem; border-bottom: 2px solid rgba(0,0,0,0.1);">
+                                <span style="display: flex; align-items: center; gap: 0.5rem; color: #1f2937;">
+                                    <i class="fa-solid fa-boxes" style="font-size: 1rem; color: #8b5cf6;"></i>
+                                    <span style="color: #1f2937; font-weight: 600;">LPO</span>
+                                </span>
+                                <div style="display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
+                                    <label style="margin: 0; font-size: 0.8125rem; font-weight: 600; color: #374151; white-space: nowrap;">
+                                        Order Status:
+                                    </label>
+                                    @php
+                                        // Get product_status array directly to check 'lpo' key
+                                        $productStatusArray = $order->product_status ?? [];
+                                        $lpoStatuses = $productStatusArray['lpo'] ?? [];
+                                        
+                                        // For LPO, get the status from the first supplier or use a default
+                                        $statusValue = 'pending';
+                                        if (is_array($lpoStatuses) && !empty($lpoStatuses)) {
+                                            // Get the first status from the array
+                                            $statusValue = reset($lpoStatuses);
+                                        } elseif (is_string($lpoStatuses) && $lpoStatuses !== '' && $lpoStatuses !== 'null') {
+                                            $statusValue = $lpoStatuses;
+                                        }
+                                        
+                                        $productStatusColors = \App\Utility\Enums\ProductStatusEnum::getAllColors();
+                                        $productStatusTextColors = \App\Utility\Enums\ProductStatusEnum::getAllTextColors();
+                                        $statusIcons = \App\Utility\Enums\ProductStatusEnum::getAllIcons();
+                                        $productStatusLabels = \App\Utility\Enums\ProductStatusEnum::getAllLabels();
+                                        $currentTextColor = $productStatusTextColors[$statusValue] ?? '#374151';
+                                        $borderColor = $currentTextColor . '33';
+                                    @endphp
+                                    <div class="d-inline-flex align-items-center gap-2"
+                                         style="background-color: {{ $productStatusColors[$statusValue] ?? '#f3f4f6' }}; color: {{ $currentTextColor }}; border: 2px solid {{ $borderColor }}; min-width: 180px; font-size: 0.875rem; font-weight: 600; padding: 0.5rem 0.875rem; border-radius: 0.5rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                        <i class="fa-solid {{ $statusIcons[$statusValue] ?? 'fa-clock' }}" style="font-size: 0.875rem;"></i>
+                                        <span>{{ $productStatusLabels[$statusValue] ?? ucfirst($statusValue) }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="table-responsive" style="overflow: visible;">
+                                <table class="table table-bordered mb-0" style="margin-bottom: 0; background: #ffffff;">
+                                    <thead style="background: #f9fafb; border-bottom: 1px solid #e5e7eb;">
+                                        <tr>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 80px;">Image</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; min-width: 250px; width: 35%;">Material</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; width: 120px;">Category</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: left; color: #374151; text-transform: uppercase; width: 70px;">Unit</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 120px;">Quantity</th>
+                                            <th style="padding: 1rem 0.875rem; font-size: 0.8125rem; font-weight: 600; text-align: center; color: #374151; text-transform: uppercase; width: 80px;">Store</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
                                         @foreach($lpoProducts as $index => $product)
                                         <tr style="vertical-align: middle;">
-                                            <td style="padding: 0.5rem; vertical-align: middle; word-wrap: break-word; overflow-wrap: break-word; border: none; text-align: left;">
-                                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.3; max-width: 150px; word-break: break-word;">
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                @php
+                                                    $firstImage = $product->productImages->first();
+                                                    $imageUrl = $firstImage ? $firstImage->image_url : ($product->image ? \Storage::url($product->image) : null);
+                                                @endphp
+                                                @if($imageUrl)
+                                                    <img src="{{ $imageUrl }}" 
+                                                         alt="{{ $product->product_name ?? $product->name ?? 'Material' }}"
+                                                         style="width: 50px; height: 50px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block; margin: 0 auto;"
+                                                         class="product-image-zoom"
+                                                         data-image-url="{{ $imageUrl }}"
+                                                         data-product-name="{{ $product->product_name ?? $product->name ?? 'Material' }}">
+                                                @else
+                                                    <div style="width: 50px; height: 50px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center; margin: 0 auto;">
+                                                        <i class="fa-solid fa-image text-gray-400" style="font-size: 1rem;"></i>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <div style="font-size: 0.875rem; font-weight: 500; color: #374151; line-height: 1.4;">
                                                     {{ $product->product_name ?? $product->name ?? 'N/A' }}
                                                 </div>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                                <div style="background: #f9fafb; border: 1px solid #e5e7eb; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 500; color: #374151; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                                    <span style="text-align: center; width: 100%;">{{ $product->unit_type ?? '-' }}</span>
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; color: #374151;">{{ $product->category->name ?? '-' }}</span>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center !important; border: none;">
-                                                <div style="background: #f0f9ff; border: 1px solid #3b82f6; min-height: 32px; height: 32px; display: flex !important; align-items: center; justify-content: center !important; font-size: 0.875rem; font-weight: 600; color: #1e40af; border-radius: 0.375rem; width: 100%; text-align: center;">
-                                                    <span style="text-align: center; width: 100%;">{{ formatQty($product->pivot->quantity ?? 0) }}</span>
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: left; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; color: #374151;">{{ $product->unit_type ?? '-' }}</span>
                                             </td>
-                                            <td style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none;">
-                                                <div style="display: flex; align-items: center; justify-content: center; height: 100%;">
-                                                    @php
-                                                        $firstImage = $product->productImages->first();
-                                                        $imageUrl = $firstImage ? $firstImage->image_url : ($product->image ? \Storage::url($product->image) : null);
-                                                    @endphp
-                                                    @if($imageUrl)
-                                                        <img src="{{ $imageUrl }}" 
-                                                             alt="{{ $product->product_name ?? $product->name ?? 'Product' }}"
-                                                             style="width: 40px; height: 40px; object-fit: cover; border-radius: 0.375rem; cursor: pointer; display: block;"
-                                                             class="product-image-zoom"
-                                                             data-image-url="{{ $imageUrl }}"
-                                                             data-product-name="{{ $product->product_name ?? $product->name ?? 'Product' }}">
-                                                    @else
-                                                        <div style="width: 40px; height: 40px; background: #f3f4f6; border-radius: 0.375rem; display: flex; align-items: center; justify-content: center;">
-                                                            <i class="fa-solid fa-image text-gray-400" style="font-size: 0.875rem;"></i>
-                                                        </div>
-                                                    @endif
-                                                </div>
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
+                                                <span style="font-size: 0.875rem; font-weight: 600; color: #1e40af;">{{ formatQty($product->pivot->quantity ?? 0) }}</span>
                                             </td>
-                                            @if($loop->first)
-                                            <td rowspan="{{ $lpoProducts->count() }}" style="padding: 0.5rem; vertical-align: middle; text-align: center; border: none; border-left: 2px solid #198754;">
+                                            <td style="padding: 1rem 0.875rem; text-align: center; vertical-align: middle;">
                                                 <span class="badge" style="background: #198754; color: #fff; font-size: 0.75rem; padding: 0.35rem 0.65rem;">LPO</span>
                                             </td>
-                                            @endif
                                         </tr>
                                         @endforeach
-                                    @endif
-                                </tbody>
-                                <tfoot style="background: #f9fafb; border-top: 2px solid #e5e7eb;">
-                                    <tr>
-                                        <td colspan="4" style="padding: 0.5rem; text-align: right; font-weight: 600; font-size: 0.875rem; color: #374151;">Total Quantity:</td>
-                                        <td colspan="1" style="padding: 0.5rem; text-align: right; font-weight: 700; font-size: 1rem; color: #1e3a8a;">
-                                            @php
-                                                $totalQty = ($order->products ? $order->products->sum(fn($p) => $p->pivot->quantity ?? 0) : 0) + ($customProducts->sum(fn($c) => $c->quantity ?? 0));
-                                            @endphp
-                                            {{ formatQty($totalQty) }}
-                                        </td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
+                        @endif
                     </div>
                     @else
                     <div class="alert alert-info">
-                        <i class="fa-solid fa-info-circle me-2"></i>No products found for this order.
+                        <i class="fa-solid fa-info-circle me-2"></i>No materials found for this order.
                     </div>
                     @endif
                 </div>
