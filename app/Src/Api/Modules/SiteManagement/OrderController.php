@@ -1764,16 +1764,33 @@ class OrderController extends Controller
         // Try input() first (works for POST requests)
         $data = $request->input();
         
-        // If empty, try all() (works for POST)
+        // Always check all() to get bracket notation keys that might not be in input()
+        // This is important for JSON requests that have bracket notation in keys
+        $allData = $request->all();
+        
+        // If input() is empty, use all()
         if (empty($data)) {
-            $data = $request->all();
+            $data = $allData;
+        } else {
+            // Merge all() data, but only add keys that don't exist in $data or are bracket notation
+            // This ensures we capture bracket notation keys like products[0][product_id]
+            foreach ($allData as $key => $value) {
+                // If key doesn't exist in data, or if it's bracket notation, add it
+                if (!isset($data[$key]) || preg_match('/\[/', $key)) {
+                    $data[$key] = $value;
+                }
+            }
         }
         
         // Try request parameter bag (sometimes has data for PUT)
         if (empty($data) && method_exists($request, 'request')) {
             $requestBag = $request->request->all();
             if (!empty($requestBag)) {
-                $data = $requestBag;
+                foreach ($requestBag as $key => $value) {
+                    if (!isset($data[$key]) || preg_match('/\[/', $key)) {
+                        $data[$key] = $value;
+                    }
+                }
             }
         }
         
@@ -1786,18 +1803,92 @@ class OrderController extends Controller
                 // Parse multipart/form-data manually
                 $parsed = $this->parseMultipartFormData($request);
                 if (!empty($parsed)) {
-                    $data = $parsed;
+                    foreach ($parsed as $key => $value) {
+                        if (!isset($data[$key]) || preg_match('/\[/', $key)) {
+                            $data[$key] = $value;
+                        }
+                    }
                 }
             } elseif (strpos($contentType, 'application/x-www-form-urlencoded') !== false) {
                 // Parse form-urlencoded
                 parse_str($request->getContent(), $parsed);
                 if (!empty($parsed)) {
-                    $data = $parsed;
+                    foreach ($parsed as $key => $value) {
+                        if (!isset($data[$key]) || preg_match('/\[/', $key)) {
+                            $data[$key] = $value;
+                        }
+                    }
                 }
             }
         }
         
+        // Convert bracket notation to nested arrays (e.g., products[0][product_id] -> products[0][product_id])
+        // This handles cases where JSON requests have bracket notation keys
+        $data = $this->convertBracketNotationToNestedArray($data);
+        
         return $data;
+    }
+
+    /**
+     * Convert bracket notation keys to nested arrays
+     * Example: ['products[0][product_id]' => 123] becomes ['products' => [0 => ['product_id' => 123]]]
+     */
+    private function convertBracketNotationToNestedArray(array $data): array
+    {
+        $result = [];
+        $bracketKeys = [];
+        $regularKeys = [];
+        
+        // Separate bracket notation keys from regular keys
+        foreach ($data as $key => $value) {
+            if (preg_match('/\[/', $key)) {
+                $bracketKeys[$key] = $value;
+            } else {
+                $regularKeys[$key] = $value;
+            }
+        }
+        
+        // If no bracket notation keys, return data as-is
+        if (empty($bracketKeys)) {
+            return $data;
+        }
+        
+        // Start with regular keys (preserve existing nested arrays)
+        $result = $regularKeys;
+        
+        // Convert bracket notation keys to nested arrays
+        foreach ($bracketKeys as $key => $value) {
+            if (preg_match('/^(.+?)\[(\d+)\]\[(.+?)\]$/', $key, $matches)) {
+                // Format: products[0][product_id]
+                $arrayName = $matches[1];
+                $index = (int)$matches[2];
+                $nestedKey = $matches[3];
+                
+                if (!isset($result[$arrayName])) {
+                    $result[$arrayName] = [];
+                }
+                if (!isset($result[$arrayName][$index])) {
+                    $result[$arrayName][$index] = [];
+                }
+                $result[$arrayName][$index][$nestedKey] = $value;
+            } elseif (preg_match('/^(.+?)\[(\d+)\]$/', $key, $matches)) {
+                // Format: products[0]
+                $arrayName = $matches[1];
+                $index = (int)$matches[2];
+                
+                if (!isset($result[$arrayName])) {
+                    $result[$arrayName] = [];
+                }
+                // If the index already exists as an array, merge; otherwise set
+                if (isset($result[$arrayName][$index]) && is_array($result[$arrayName][$index]) && is_array($value)) {
+                    $result[$arrayName][$index] = array_merge($result[$arrayName][$index], $value);
+                } else {
+                    $result[$arrayName][$index] = $value;
+                }
+            }
+        }
+        
+        return $result;
     }
 
     /**
