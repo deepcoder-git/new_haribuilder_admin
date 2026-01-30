@@ -114,7 +114,7 @@
             <div class="row g-3 mb-3">
                 <div class="col-md-6">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
-                        Password <span class="text-danger">*</span>
+                        Password @if(!$isEditMode)<span class="text-danger">*</span>@endif
                     </label>
                     <div class="input-group position-relative">
                         <input type="{{ $showPassword ? 'text' : 'password' }}" 
@@ -140,7 +140,7 @@
                 </div>
                 <div class="col-md-6">
                     <label class="form-label fw-semibold text-gray-700 mb-2">
-                        Confirm Password <span class="text-danger">*</span>
+                        Confirm Password @if(!$isEditMode)<span class="text-danger">*</span>@endif
                     </label>
                     <div class="input-group position-relative">
                         <input type="{{ $showPasswordConfirmation ? 'text' : 'password' }}" 
