@@ -530,11 +530,41 @@ class OrderController extends Controller
     public function updateOrderWithFormData(Request $request): ApiResponse|ApiErrorResponse
     {
         try {
+            // Log initial request information
+            Log::info('=== MOBILE PRODUCT UPDATE: START ===', [
+                'method' => $request->method(),
+                'content_type' => $request->header('Content-Type'),
+                'user_agent' => $request->header('User-Agent'),
+                'raw_input_keys' => array_keys($request->all()),
+                'has_products_in_request' => $request->has('products'),
+                'products_type' => gettype($request->input('products')),
+                'products_value' => $request->input('products'),
+            ]);
+
             // For PUT/POST requests with form-data, use input() which works better for form-data than all()
             $formData = $this->getFormDataFromRequest($request);
             
+            Log::info('MOBILE PRODUCT UPDATE: After getFormDataFromRequest', [
+                'formData_keys' => array_keys($formData),
+                'formData_products_exists' => isset($formData['products']),
+                'formData_products_type' => isset($formData['products']) ? gettype($formData['products']) : 'not_set',
+                'formData_products_value' => $formData['products'] ?? null,
+                'formData_order_id' => $formData['order_id'] ?? null,
+                'formData_action_type' => $formData['action_type'] ?? null,
+                'formData_deleted_id' => $formData['deleted_id'] ?? null,
+            ]);
+            
             // Prepare and normalize form data
             $formData = $this->prepareUpdateFormData($request, $formData);
+
+            Log::info('MOBILE PRODUCT UPDATE: After prepareUpdateFormData', [
+                'formData_keys' => array_keys($formData),
+                'formData_products_exists' => isset($formData['products']),
+                'formData_products_type' => isset($formData['products']) ? gettype($formData['products']) : 'not_set',
+                'formData_products_is_array' => isset($formData['products']) ? is_array($formData['products']) : false,
+                'formData_products_count' => isset($formData['products']) && is_array($formData['products']) ? count($formData['products']) : 0,
+                'formData_products_value' => $formData['products'] ?? null,
+            ]);
 
             // Validate the request
             $validator = Validator::make(
@@ -543,6 +573,10 @@ class OrderController extends Controller
             );
 
             if ($validator->fails()) {
+                Log::warning('MOBILE PRODUCT UPDATE: Validation failed', [
+                    'errors' => $validator->errors()->toArray(),
+                    'formData' => $formData,
+                ]);
                 return new ApiErrorResponse(
                     ['errors' => $validator->errors()],
                     'Validation failed',
@@ -552,6 +586,12 @@ class OrderController extends Controller
 
             $user = $request->user();
             $orderId = (int) $formData['order_id']; // Ensure integer
+
+            Log::info('MOBILE PRODUCT UPDATE: User and Order ID', [
+                'user_id' => $user->id ?? null,
+                'user_role' => $user->role?->value ?? null,
+                'order_id' => $orderId,
+            ]);
 
             // First check if order exists at all
             $orderExists = Order::where('id', $orderId)->exists();
@@ -646,32 +686,87 @@ class OrderController extends Controller
             $productUpdated = false;
             $productDeleted = false;
 
+            Log::info('MOBILE PRODUCT UPDATE: Checking products for update', [
+                'has_products_key' => isset($formData['products']),
+                'products_not_empty' => !empty($formData['products']),
+                'products_is_array' => is_array($formData['products'] ?? null),
+                'products_count' => is_array($formData['products'] ?? null) ? count($formData['products']) : 0,
+                'products_data' => $formData['products'] ?? null,
+            ]);
+
             if (!empty($formData['products']) && is_array($formData['products'])) {
+                Log::info('MOBILE PRODUCT UPDATE: Processing product updates', [
+                    'products_count' => count($formData['products']),
+                    'products_details' => $formData['products'],
+                    'order_id' => $orderDetails->id,
+                ]);
+
                 $result = $this->processProductUpdates($request, $orderDetails, $formData['products'], $user);
                 $productUpdated = $result['updated'];
                 
+                Log::info('MOBILE PRODUCT UPDATE: Product update result', [
+                    'product_updated' => $productUpdated,
+                    'result' => $result,
+                ]);
+                
                 // Update product_status and order flags based on current products
                 if ($productUpdated) {
+                    Log::info('MOBILE PRODUCT UPDATE: Updating order product status after product update');
                     $this->updateOrderProductStatus($orderDetails);
+                    $orderDetails->refresh();
+                    Log::info('MOBILE PRODUCT UPDATE: Order status after product update', [
+                        'order_status' => $orderDetails->status?->value ?? $orderDetails->status,
+                        'product_status' => $orderDetails->product_status ?? null,
+                    ]);
+                } else {
+                    Log::warning('MOBILE PRODUCT UPDATE: No products were updated', [
+                        'products_sent' => $formData['products'],
+                    ]);
                 }
+            } else {
+                Log::info('MOBILE PRODUCT UPDATE: No products to update', [
+                    'products_value' => $formData['products'] ?? null,
+                    'products_type' => gettype($formData['products'] ?? null),
+                ]);
             }
 
             // Handle deleted_id - comma-separated product IDs to remove
             $deletionDetails = null;
             if (!empty($formData['deleted_id'])) {
+                Log::info('MOBILE PRODUCT UPDATE: Processing product deletions', [
+                    'deleted_id_raw' => $formData['deleted_id'],
+                ]);
+
                 $deletedIds = $this->parseDeletedIds($formData['deleted_id']);
+                
+                Log::info('MOBILE PRODUCT UPDATE: Parsed deleted IDs', [
+                    'deleted_ids' => $deletedIds,
+                    'is_approved_or_in_transit' => $isApprovedOrInTransit,
+                ]);
                 
                 if (!empty($deletedIds)) {
                     $deleteResult = $this->processProductDeletions($orderDetails, $deletedIds, $isApprovedOrInTransit);
                     $productDeleted = $deleteResult['deleted'];
                     $deletionDetails = $deleteResult;
                     
+                    Log::info('MOBILE PRODUCT UPDATE: Product deletion result', [
+                        'product_deleted' => $productDeleted,
+                        'deletion_details' => $deletionDetails,
+                    ]);
+                    
                     if ($productDeleted) {
                         $productUpdated = true;
                         $orderDetails->refresh();
+                        Log::info('MOBILE PRODUCT UPDATE: Updating order product status after product deletion');
                         $this->updateOrderProductStatus($orderDetails);
                     }
+                } else {
+                    Log::warning('MOBILE PRODUCT UPDATE: No valid deleted IDs parsed', [
+                        'deleted_id_raw' => $formData['deleted_id'],
+                    ]);
                 }
+            } else {
+                Log::info('MOBILE PRODUCT UPDATE: No deleted_id provided');
             }
 
             // Handle stock adjustments for approved/in_transit orders
@@ -697,26 +792,47 @@ class OrderController extends Controller
                 $actionType = $formData['action_type'];
                 $orderDetails->refresh();
                 
+                Log::info('MOBILE PRODUCT UPDATE: Processing action_type', [
+                    'action_type' => $actionType,
+                    'order_id' => $orderDetails->id,
+                ]);
+                
                 // Get current status again after potential product updates
                 $currentProductStatus = $orderDetails->getProductStatus($productStatusType);
+                
+                Log::info('MOBILE PRODUCT UPDATE: Current status before action', [
+                    'action_type' => $actionType,
+                    'current_product_status' => $currentProductStatus,
+                    'product_status_type' => $productStatusType,
+                ]);
                 
                 if ($actionType === 'delivered') {
                     $error = $this->handleDeliveredAction($orderDetails, $currentProductStatus, $productStatusType);
                     if ($error) {
+                        Log::error('MOBILE PRODUCT UPDATE: Delivered action failed', [
+                            'error' => $error,
+                        ]);
                         return $error;
                     }
                 } else if ($actionType === 'rejected') {
                     $error = $this->handleRejectedAction($orderDetails, $currentProductStatus, $productStatusType, $formData['rejected_note'] ?? '');
                     if ($error) {
+                        Log::error('MOBILE PRODUCT UPDATE: Rejected action failed', [
+                            'error' => $error,
+                        ]);
                         return $error;
                     }
                 } else if ($actionType === 'approved') {
                     $error = $this->handleApprovedAction($orderDetails, $currentProductStatus, $productStatusType);
                     if ($error) {
+                        Log::error('MOBILE PRODUCT UPDATE: Approved action failed', [
+                            'error' => $error,
+                        ]);
                         return $error;
                     }
                 } else if ($actionType === 'received') {
                     if (empty($formData['store_id'])) {
+                        Log::warning('MOBILE PRODUCT UPDATE: Store ID missing for received action');
                         return new ApiErrorResponse(
                             ['errors' => ['Store ID is required for received action.']],
                             'order action failed',
@@ -725,21 +841,43 @@ class OrderController extends Controller
                     }
                     $error = $this->handleReceivedAction($orderDetails, $productStatusType, $formData['store_id']);
                     if ($error) {
+                        Log::error('MOBILE PRODUCT UPDATE: Received action failed', [
+                            'error' => $error,
+                        ]);
                         return $error;
                     }
                 } else {
                     // Fallback for other action types (e.g., outfordelivery)
                     $error = $this->handleDefaultAction($orderDetails, $actionType, $productStatusType);
                     if ($error) {
+                        Log::error('MOBILE PRODUCT UPDATE: Default action failed', [
+                            'action_type' => $actionType,
+                            'error' => $error,
+                        ]);
                         return $error;
                     }
                 }
+
+                Log::info('MOBILE PRODUCT UPDATE: Action type completed', [
+                    'action_type' => $actionType,
+                    'order_id' => $orderDetails->id,
+                ]);
             }
 
             // Reload with relationships for response - use $orderId to ensure correct order
             $orderDetails = Order::with(['site', 'products.category', 'products.productImages', 'customProducts.images'])
                 ->where('id', $orderId)
                 ->first();
+
+            Log::info('MOBILE PRODUCT UPDATE: Final order state before response', [
+                'order_id' => $orderId,
+                'order_status' => $orderDetails->status?->value ?? $orderDetails->status,
+                'product_status' => $orderDetails->product_status ?? null,
+                'products_count' => $orderDetails->products->count() ?? 0,
+                'custom_products_count' => $orderDetails->customProducts->count() ?? 0,
+                'product_updated' => $productUpdated,
+                'product_deleted' => $productDeleted,
+            ]);
 
             // Generate response message
             $message = $this->generateUpdateMessage($updateData, $productUpdated, $productDeleted);
@@ -767,16 +905,39 @@ class OrderController extends Controller
             // If deletion was attempted but failed, append details to message
             if (isset($deletionDetails) && !$productDeleted && !empty($deletionDetails['requested_ids'])) {
                 $message .= ' Requested product IDs (' . implode(', ', $deletionDetails['requested_ids']) . ') were not found in this order.';
+                Log::warning('MOBILE PRODUCT UPDATE: Deletion failed for some IDs', [
+                    'requested_ids' => $deletionDetails['requested_ids'],
+                ]);
             }
 
+            Log::info('MOBILE PRODUCT UPDATE: Preparing final response', [
+                'order_id' => $orderId,
+                'user_role' => $userRole,
+                'message' => $message,
+                'product_updated' => $productUpdated,
+                'product_deleted' => $productDeleted,
+            ]);
+
                 if($userRole === RoleEnum::StoreManager->value) {
+                    Log::info('MOBILE PRODUCT UPDATE: SUCCESS - Returning StoreManager response', [
+                        'order_id' => $orderId,
+                        'message' => $message,
+                        'product_updated' => $productUpdated,
+                        'product_deleted' => $productDeleted,
+                    ]);
                     return new ApiResponse(
                         isError: false,
                         code: 200,
                         data: StoreManagerOrderResource::collection([$orderDetails]),
                         message: $message
                     );
-                }elseif($userRole === RoleEnum::WorkshopStoreManager->value) {   
+                }elseif($userRole === RoleEnum::WorkshopStoreManager->value) {
+                    Log::info('MOBILE PRODUCT UPDATE: SUCCESS - Returning WorkshopStoreManager response', [
+                        'order_id' => $orderId,
+                        'message' => $message,
+                        'product_updated' => $productUpdated,
+                        'product_deleted' => $productDeleted,
+                    ]);
                     return new ApiResponse(
                         isError: false,
                         code: 200,
@@ -784,18 +945,33 @@ class OrderController extends Controller
                         message: $message
                     );
                 }else{
-                // Ensure consistent response format - wrap single order in array for collection
-                return new ApiResponse(
-                    isError: false,
-                    code: 200,
-                    data: OrderResource::collection([$orderDetails]),
-                    message: $message
-                );
-            }
+                    Log::info('MOBILE PRODUCT UPDATE: SUCCESS - Returning default OrderResource response', [
+                        'order_id' => $orderId,
+                        'message' => $message,
+                        'product_updated' => $productUpdated,
+                        'product_deleted' => $productDeleted,
+                    ]);
+                    // Ensure consistent response format - wrap single order in array for collection
+                    return new ApiResponse(
+                        isError: false,
+                        code: 200,
+                        data: OrderResource::collection([$orderDetails]),
+                        message: $message
+                    );
+                }
         } catch (\Exception $e) {
-            Log::error('Order update failed: ' . $e->getMessage(), [
+            Log::error('MOBILE PRODUCT UPDATE: EXCEPTION CAUGHT', [
+                'error_message' => $e->getMessage(),
+                'error_file' => $e->getFile(),
+                'error_line' => $e->getLine(),
                 'trace' => $e->getTraceAsString(),
-                'request_data' => $request->except(['customer_image', 'products'])
+                'request_method' => $request->method(),
+                'request_url' => $request->fullUrl(),
+                'request_headers' => $request->headers->all(),
+                'request_data_keys' => array_keys($request->all()),
+                'request_products_type' => gettype($request->input('products')),
+                'request_products_value' => $request->input('products'),
+                'request_data' => $request->except(['customer_image', 'products']),
             ]);
 
             // Extract cleaner error message
@@ -1867,36 +2043,87 @@ class OrderController extends Controller
     ): array {
         $productUpdated = false;
 
+        Log::info('MOBILE PRODUCT UPDATE: processProductUpdates called', [
+            'order_id' => $orderDetails->id,
+            'products_count' => count($products),
+            'products_data' => $products,
+        ]);
+
         // Process each product in the request
         foreach ($products as $index => $productChange) {
+            Log::info('MOBILE PRODUCT UPDATE: Processing product at index', [
+                'index' => $index,
+                'product_data' => $productChange,
+                'has_is_custom' => isset($productChange['is_custom']),
+                'is_custom_value' => $productChange['is_custom'] ?? null,
+            ]);
+
             $isCustom = filter_var($productChange['is_custom'] ?? 0, FILTER_VALIDATE_BOOLEAN);
+
+            Log::info('MOBILE PRODUCT UPDATE: Product type determined', [
+                'index' => $index,
+                'is_custom' => $isCustom,
+            ]);
 
             if ($isCustom) {
                 // Handle custom product update/create
+                Log::info('MOBILE PRODUCT UPDATE: Processing custom product', [
+                    'index' => $index,
+                    'product_data' => $productChange,
+                ]);
+
                 $result = $this->processCustomProductUpdate(
                     $request,
                     $productChange,
                     $index,
                     $orderDetails
                 );
+
+                Log::info('MOBILE PRODUCT UPDATE: Custom product result', [
+                    'index' => $index,
+                    'result' => $result,
+                ]);
+
                 if ($result['updated']) {
                     $productUpdated = true;
                 }
             } else {
                 // Handle regular product update/add
                 if (empty($productChange['product_id'])) {
+                    Log::warning('MOBILE PRODUCT UPDATE: Skipping product - no product_id', [
+                        'index' => $index,
+                        'product_data' => $productChange,
+                    ]);
                     continue;
                 }
+
+                Log::info('MOBILE PRODUCT UPDATE: Processing regular product', [
+                    'index' => $index,
+                    'product_id' => $productChange['product_id'],
+                    'product_data' => $productChange,
+                ]);
 
                 $result = $this->processRegularProductUpdate(
                     $productChange,
                     $orderDetails
                 );
+
+                Log::info('MOBILE PRODUCT UPDATE: Regular product result', [
+                    'index' => $index,
+                    'product_id' => $productChange['product_id'],
+                    'result' => $result,
+                ]);
+
                 if ($result['updated']) {
                     $productUpdated = true;
                 }
             }
         }
+
+        Log::info('MOBILE PRODUCT UPDATE: processProductUpdates completed', [
+            'order_id' => $orderDetails->id,
+            'product_updated' => $productUpdated,
+        ]);
 
         return [
             'deleted' => false,
