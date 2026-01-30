@@ -46,16 +46,16 @@ class StoreManagerOrderResource extends JsonResource
 
                             if (!empty($imagePath)) {
                                 if (preg_match('#^https?://#i', $imagePath)) {
-                                    $imageUrls[] = $imagePath;
+                                    $imageUrls[] = $this->ensureHttps($imagePath);
                                 } else {
-                                    $imageUrls[] = url(Storage::url($imagePath));
+                                    $imageUrls[] = $this->ensureHttps(url(Storage::url($imagePath)));
                                 }
                             }
                         }
                     }
                     
                     if (empty($imageUrls) && $product->image) {
-                        $imageUrls[] = url(Storage::url($product->image));
+                        $imageUrls[] = $this->ensureHttps(url(Storage::url($product->image)));
                     }
                     
                     // Use product's store type instead of order store
@@ -89,9 +89,9 @@ class StoreManagerOrderResource extends JsonResource
                                 
                                 if (!empty($imagePath)) {
                                     if (preg_match('#^https?://#i', $imagePath)) {
-                                        $materialImageUrls[] = $imagePath;
+                                        $materialImageUrls[] = $this->ensureHttps($imagePath);
                                     } else {
-                                        $materialImageUrls[] = url(Storage::url($imagePath));
+                                        $materialImageUrls[] = $this->ensureHttps(url(Storage::url($imagePath)));
                                     }
                                 }
                             }
@@ -99,7 +99,7 @@ class StoreManagerOrderResource extends JsonResource
                         
                         // Fallback to material image if no product images
                         if (empty($materialImageUrls) && $material->image) {
-                            $materialImageUrls[] = url(Storage::url($material->image));
+                            $materialImageUrls[] = $this->ensureHttps(url(Storage::url($material->image)));
                         }
                         
                         // Get quantity from pivot (product_materials table)
@@ -169,6 +169,15 @@ class StoreManagerOrderResource extends JsonResource
         ];
     }
 
+    /**
+     * Ensure URL uses HTTPS instead of HTTP
+     */
+    private function ensureHttps(string $url): string
+    {
+        // Replace http:// with https://
+        return preg_replace('#^http://#i', 'https://', $url);
+    }
+    
     private function formatDate($date): ?string
     {
         if (!$date) {

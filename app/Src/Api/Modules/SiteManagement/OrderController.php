@@ -1401,11 +1401,11 @@ class OrderController extends Controller
                 foreach ($customProduct->images as $image) {
                     if ($image->image_path) {
                         if (preg_match('#^https?://#i', $image->image_path)) {
-                            $imageUrls[] = $image->image_path;
+                            $imageUrls[] = $this->ensureHttps($image->image_path);
                         } else {
-                            $imageUrls[] = Storage::disk('public')->exists($image->image_path)
+                            $imageUrls[] = $this->ensureHttps(Storage::disk('public')->exists($image->image_path)
                                 ? url(Storage::url($image->image_path))
-                                : url('storage/' . $image->image_path);
+                                : url('storage/' . $image->image_path));
                         }
                     }
                 }
@@ -1488,11 +1488,11 @@ class OrderController extends Controller
                 foreach ($customProduct->images as $image) {
                     if ($image->image_path) {
                         if (preg_match('#^https?://#i', $image->image_path)) {
-                            $imageUrls[] = $image->image_path;
+                            $imageUrls[] = $this->ensureHttps($image->image_path);
                         } else {
-                            $imageUrls[] = Storage::disk('public')->exists($image->image_path)
+                            $imageUrls[] = $this->ensureHttps(Storage::disk('public')->exists($image->image_path)
                                 ? url(Storage::url($image->image_path))
-                                : url('storage/' . $image->image_path);
+                                : url('storage/' . $image->image_path));
                         }
                     }
                 }
@@ -4348,6 +4348,15 @@ class OrderController extends Controller
         return null;
     }
 
+    /**
+     * Ensure URL uses HTTPS instead of HTTP
+     */
+    private function ensureHttps(string $url): string
+    {
+        // Replace http:// with https://
+        return preg_replace('#^http://#i', 'https://', $url);
+    }
+    
     /**
      * Parse delivery date from dd/MM/yyyy format
      */
