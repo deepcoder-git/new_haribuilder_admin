@@ -103,8 +103,12 @@ class WastageService extends BaseCrudService
         }
         
         // Check total wastage for each product across all wastages for this order
+        // Include both approved and pending wastages (rejected wastages don't count)
         $existingWastagesQuery = Wastage::where('order_id', $orderId)
-            ->where('status', WastageStatusEnum::Approved->value);
+            ->whereIn('status', [
+                WastageStatusEnum::Approved->value,
+                WastageStatusEnum::Pending->value
+            ]);
         
         if ($excludeWastageId) {
             $existingWastagesQuery->where('id', '!=', $excludeWastageId);
@@ -132,9 +136,39 @@ class WastageService extends BaseCrudService
         foreach ($totalWastageQuantities as $productId => $totalWastageQty) {
             $orderedQty = $orderedQuantities[$productId] ?? 0;
             if ($totalWastageQty > $orderedQty) {
-                throw new \Exception(
-                    "Total wastage quantity ({$totalWastageQty}) cannot exceed ordered quantity ({$orderedQty}) for product ID {$productId}."
-                );
+                // Get product name for better error message
+                $product = Product::find($productId);
+                $productName = $product ? $product->product_name : "Product ID {$productId}";
+                
+                // Calculate existing wastage (sum of all existing wastages for this product)
+                $existingTotal = 0;
+                foreach ($existingWastages as $existingWastage) {
+                    foreach ($existingWastage->products as $wastageProduct) {
+                        if ($wastageProduct->id == $productId) {
+                            $existingTotal += (int) ($wastageProduct->pivot->wastage_qty ?? 0);
+                        }
+                    }
+                }
+                
+                // Calculate new wastage quantity being added
+                $newWastageQty = 0;
+                foreach ($products as $product) {
+                    if ((int) ($product['product_id'] ?? 0) == $productId) {
+                        $newWastageQty += (int) ($product['wastage_qty'] ?? 0);
+                    }
+                }
+                
+                // Build detailed error message
+                $message = "Total wastage quantity ({$totalWastageQty}) cannot exceed ordered quantity ({$orderedQty}) for {$productName} (ID: {$productId}). ";
+                if ($existingTotal > 0) {
+                    $message .= "Existing wastage: {$existingTotal}. ";
+                }
+                if ($newWastageQty > 0) {
+                    $message .= "New wastage: {$newWastageQty}. ";
+                }
+                $message .= "Please reduce the wastage quantity or remove existing wastages for this product.";
+                
+                throw new \Exception($message);
             }
         }
     }
@@ -214,6 +248,16 @@ class WastageService extends BaseCrudService
         }
 
         $siteId = $wastage->site_id ? (int) $wastage->site_id : null;
+        
+        // Check both model and data for order_id (model might not be refreshed yet)
+        // Refresh model if order_id is not found to ensure we have the latest data
+        $orderId = $wastage->order_id ?? $data['order_id'] ?? null;
+        if (empty($orderId) && $wastage->id) {
+            $wastage->refresh();
+            $orderId = $wastage->order_id ?? null;
+        }
+        
+        $isOrderWastage = !empty($orderId);
 
         foreach ($products as $row) {
             $productId = (int) ($row['product_id'] ?? 0);
@@ -233,18 +277,80 @@ class WastageService extends BaseCrudService
             $isProduct = ($product->is_product ?? 1) > 0;
 
             $notes = "Stock reduced from Wastage #{$wastage->id} (qty: " . number_format($qty, 2) . ")";
+            if ($isOrderWastage && $orderId) {
+                $notes .= " - Order #{$orderId}";
+            }
             $name = "Wastage #{$wastage->id} - Stock Out";
 
             try {
-                if ($isProduct) {
-                    $stockService->adjustProductStock($productId, $qty, 'out', $siteId, $notes, $wastage, $name);
-                } else {
-                    $stockService->adjustMaterialStock($productId, $qty, 'out', $siteId, $notes, $wastage, $name);
-                }
+                // Always use createWastageStockEntry to bypass stock availability checks
+                // This allows recording wastage even if current stock is 0 or insufficient
+                // Wastage is a record of loss/damage, not a stock transaction that requires availability
+                $this->createWastageStockEntry($productId, $qty, $siteId, $notes, $wastage, $name, $isProduct);
             } catch (\Throwable $e) {
                 // Let caller bubble up; we don't swallow stock errors silently
                 throw $e;
             }
+        }
+    }
+
+    /**
+     * Create stock entry for order-wise wastage without availability check
+     * This allows recording wastage of products that were already delivered/used
+     */
+    protected function createWastageStockEntry(int $productId, int $quantity, ?int $siteId, string $notes, Wastage $wastage, string $name, bool $isProduct): void
+    {
+        // Get current stock (may be 0 or negative)
+        // For order-wise wastage, we allow negative stock since products were already delivered
+        $query = Stock::where('product_id', $productId)
+            ->where('status', true);
+        
+        if ($siteId !== null) {
+            $query->where('site_id', $siteId);
+        } else {
+            $query->whereNull('site_id');
+        }
+        
+        $stock = $query->orderByDesc('id')->first();
+
+        // If no stock record exists, check product's available_qty (for general stock only)
+        $currentQuantity = 0;
+        if ($stock) {
+            $currentQuantity = (int)$stock->quantity;
+        } elseif ($siteId === null) {
+            $product = Product::find($productId);
+            $currentQuantity = $product ? (int)($product->available_qty ?? 0) : 0;
+        }
+        
+        $newQuantity = $currentQuantity - $quantity; // Allow negative for order-wise wastage
+
+        $stockData = [
+            'product_id' => $productId,
+            'site_id' => $siteId,
+            'name' => $name,
+            'quantity' => $newQuantity,
+            'adjustment_type' => 'out',
+            'notes' => $notes,
+            'status' => true,
+            'reference_id' => $wastage->id,
+            'reference_type' => Wastage::class,
+        ];
+
+        Stock::create($stockData);
+
+        // Update product's available_qty to match the latest stock quantity (for general stock, site_id = null)
+        if ($siteId === null) {
+            $latestStock = Stock::where('product_id', $productId)
+                ->whereNull('site_id')
+                ->where('status', true)
+                ->orderByDesc('id')
+                ->first();
+            
+            $newAvailableQty = $latestStock ? (int)$latestStock->quantity : 0;
+            
+            Product::where('id', $productId)->update([
+                'available_qty' => $newAvailableQty
+            ]);
         }
     }
 }
