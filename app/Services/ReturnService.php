@@ -219,6 +219,9 @@ class ReturnService extends BaseCrudService
             $notes = "Stock increased from Return #{$return->id} (qty: " . number_format($qty, 2) . ")";
             $name = "Return #{$return->id} - Stock In";
 
+            // Adjust stock using StockService (creates stock entry and updates available_qty)
+            // Return increases available quantity: available_qty = available_qty + return_qty
+            // StockService handles this automatically via syncProductAvailableQty
             if ($isProduct) {
                 $stockService->adjustProductStock((int) $product->id, $qty, 'in', $siteId, $notes, $return, $name);
             } else {

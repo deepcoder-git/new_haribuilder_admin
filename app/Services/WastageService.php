@@ -338,19 +338,18 @@ class WastageService extends BaseCrudService
 
         Stock::create($stockData);
 
-        // Update product's available_qty to match the latest stock quantity (for general stock, site_id = null)
+        // Directly deduct from product's available_qty (for general stock, site_id = null)
+        // Wastage reduces available quantity: available_qty = available_qty - wastage_qty
         if ($siteId === null) {
-            $latestStock = Stock::where('product_id', $productId)
-                ->whereNull('site_id')
-                ->where('status', true)
-                ->orderByDesc('id')
-                ->first();
-            
-            $newAvailableQty = $latestStock ? (int)$latestStock->quantity : 0;
-            
-            Product::where('id', $productId)->update([
-                'available_qty' => $newAvailableQty
-            ]);
+            $product = Product::find($productId);
+            if ($product) {
+                $currentAvailableQty = (int)($product->available_qty ?? 0);
+                $newAvailableQty = max(0, $currentAvailableQty - $quantity); // Don't go below 0
+                
+                Product::where('id', $productId)->update([
+                    'available_qty' => $newAvailableQty
+                ]);
+            }
         }
     }
 }
