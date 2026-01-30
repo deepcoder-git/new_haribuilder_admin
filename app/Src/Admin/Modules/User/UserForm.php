@@ -23,7 +23,7 @@ class UserForm extends Component
     public int|string|null $editingId = null;
 
     public string $name = '';
-    public string $email = '';
+    public ?string $email = null;
     public string $mobile_number = '';
     public string $password = '';
     public string $password_confirmation = '';
@@ -214,7 +214,7 @@ class UserForm extends Component
     {
         $data = [
             'name' => $this->name,
-            'email' => $this->email !== '' ? $this->email : null,
+            'email' => !empty($this->email) ? $this->email : null,
             'mobile_number' => $this->mobile_number !== '' ? $this->mobile_number : null,
             'role' => $role,
             'status' => (bool) $this->status ? StatusEnum::Active->value : StatusEnum::InActive->value,
