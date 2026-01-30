@@ -8,6 +8,7 @@ use App\Models\OrderReturn;
 use App\Models\OrderReturnItem;
 use App\Models\Product;
 use App\Models\Stock;
+use App\Models\Order;
 use Illuminate\Database\Eloquent\Model;
 
 class ReturnService extends BaseCrudService
@@ -22,6 +23,7 @@ class ReturnService extends BaseCrudService
         return [
             'type' => ['nullable', 'string', 'max:255'],
             'manager_id' => ['required', 'exists:moderators,id'],
+            'creator_type' => ['nullable', 'string', 'in:store_manager,site_manager,other'],
             'site_id' => ['nullable', 'exists:sites,id'],
             'order_id' => ['nullable', 'exists:orders,id'],
             'date' => ['required', 'date'],
@@ -46,13 +48,97 @@ class ReturnService extends BaseCrudService
         $items = $data['items'] ?? [];
         unset($data['items']);
 
+        // Validate return_quantity doesn't exceed ordered_quantity for order-wise returns
+        if (!empty($data['order_id']) && !empty($items)) {
+            $this->validateReturnQuantities($data['order_id'], $items);
+        }
+
         return $data;
+    }
+    
+    /**
+     * Validate that return_quantity doesn't exceed ordered_quantity for each product
+     * 
+     * @param int $orderId
+     * @param array $items
+     * @param int|null $excludeReturnId Exclude this return ID from total calculation (for edit)
+     */
+    protected function validateReturnQuantities(int $orderId, array $items, ?int $excludeReturnId = null): void
+    {
+        $order = Order::with('products')->findOrFail($orderId);
+        
+        // Get ordered quantities for each product
+        $orderedQuantities = [];
+        foreach ($order->products as $orderProduct) {
+            $productId = $orderProduct->id;
+            $orderedQty = (int) ($orderProduct->pivot->quantity ?? 0);
+            $orderedQuantities[$productId] = ($orderedQuantities[$productId] ?? 0) + $orderedQty;
+        }
+        
+        // Validate each return item
+        foreach ($items as $index => $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $returnQty = (int) ($item['return_quantity'] ?? 0);
+            $orderedQty = (int) ($item['ordered_quantity'] ?? 0);
+            
+            // If ordered_quantity not provided, get from order
+            if ($orderedQty === 0) {
+                $orderedQty = $orderedQuantities[$productId] ?? 0;
+            }
+            
+            if ($returnQty > $orderedQty) {
+                throw new \Exception(
+                    "Return quantity ({$returnQty}) cannot exceed ordered quantity ({$orderedQty}) for product ID {$productId}."
+                );
+            }
+        }
+        
+        // Check total return for each product across all returns for this order
+        $existingReturnsQuery = OrderReturn::where('order_id', $orderId)
+            ->where('status', 'approved');
+        
+        if ($excludeReturnId) {
+            $existingReturnsQuery->where('id', '!=', $excludeReturnId);
+        }
+        
+        $existingReturns = $existingReturnsQuery->with('items')->get();
+        
+        $totalReturnQuantities = [];
+        foreach ($existingReturns as $existingReturn) {
+            foreach ($existingReturn->items as $returnItem) {
+                $productId = $returnItem->product_id;
+                $returnQty = (int) ($returnItem->return_quantity ?? 0);
+                $totalReturnQuantities[$productId] = ($totalReturnQuantities[$productId] ?? 0) + $returnQty;
+            }
+        }
+        
+        // Add new return quantities
+        foreach ($items as $item) {
+            $productId = (int) ($item['product_id'] ?? 0);
+            $returnQty = (int) ($item['return_quantity'] ?? 0);
+            $totalReturnQuantities[$productId] = ($totalReturnQuantities[$productId] ?? 0) + $returnQty;
+        }
+        
+        // Final validation: total return should not exceed ordered qty
+        foreach ($totalReturnQuantities as $productId => $totalReturnQty) {
+            $orderedQty = $orderedQuantities[$productId] ?? 0;
+            if ($totalReturnQty > $orderedQty) {
+                throw new \Exception(
+                    "Total return quantity ({$totalReturnQty}) cannot exceed ordered quantity ({$orderedQty}) for product ID {$productId}."
+                );
+            }
+        }
     }
 
     protected function prepareUpdateData(array $data): array
     {
         $items = $data['items'] ?? [];
         unset($data['items']);
+
+        // Validate return_quantity doesn't exceed ordered_quantity for order-wise returns
+        if (!empty($data['order_id']) && !empty($items)) {
+            $this->validateReturnQuantities($data['order_id'], $items, $data['id'] ?? null);
+        }
 
         return $data;
     }

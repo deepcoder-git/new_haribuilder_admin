@@ -17,6 +17,7 @@ class OrderReturn extends Model
         'order_id',
         'site_id',
         'manager_id',
+        'creator_type',
         'type',
         'date',
         'status',

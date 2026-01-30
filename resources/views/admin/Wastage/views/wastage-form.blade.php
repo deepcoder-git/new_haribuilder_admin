@@ -151,6 +151,9 @@
                                     </th>
                                     <th style="padding: 0.75rem; font-size: 0.875rem; font-weight: 600;">Product</th>
                                     <th style="padding: 0.75rem; font-size: 0.875rem; font-weight: 600;">Category</th>
+                                    @if($order_id && $order_id !== 'other')
+                                        <th style="padding: 0.75rem; font-size: 0.875rem; font-weight: 600; text-align: right;">Ordered Qty</th>
+                                    @endif
                                     <th style="padding: 0.75rem; font-size: 0.875rem; font-weight: 600; text-align: right;">Wastage Qty</th>
                                     <th style="padding: 0.75rem; font-size: 0.875rem; font-weight: 600;">Unit Type</th>
                                     <th style="padding: 0.75rem; font-size: 0.875rem; font-weight: 600; text-align: center;">Action</th>
@@ -187,11 +190,22 @@
                                                 {{ $productModel && $productModel->category ? $productModel->category->name : '-' }}
                                             </div>
                                         </td>
+                                        @if($order_id && $order_id !== 'other')
+                                            <td style="padding: 0.5rem;">
+                                                <div class="form-control form-control-solid" style="background: #f9fafb; height: 42px; display: flex; align-items: center; justify-content: flex-end; font-size: 0.875rem; font-weight: 500;">
+                                                    {{ $product['quantity'] ?? 0 }}
+                                                </div>
+                                            </td>
+                                        @endif
                                         <td style="padding: 0.5rem;">
                                             <input type="number" 
                                                    wire:model.blur="wastageProducts.{{ $index }}.wastage_qty"
                                                    step="1"
                                                    min="1"
+                                                   @if($order_id && $order_id !== 'other')
+                                                       max="{{ $product['quantity'] ?? 999999 }}"
+                                                       title="Maximum: {{ $product['quantity'] ?? 0 }} (ordered quantity)"
+                                                   @endif
                                                    class="form-control form-control-solid @error('wastageProducts.'.$index.'.wastage_qty') is-invalid @enderror"
                                                    placeholder="0"
                                                    style="height: 42px; text-align: right; font-size: 0.875rem;"/>

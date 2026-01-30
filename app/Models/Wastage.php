@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Utility\Enums\WastageTypeEnum;
+use App\Utility\Enums\WastageStatusEnum;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,14 +18,17 @@ class Wastage extends Model
     protected $fillable = [
         'type',
         'manager_id',
+        'creator_type',
         'site_id',
         'order_id',
         'date',
         'reason',
+        'status',
     ];
 
     protected $casts = [
         'type' => WastageTypeEnum::class,
+        'status' => WastageStatusEnum::class,
         'date' => 'date',
     ];
 

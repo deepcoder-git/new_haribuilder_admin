@@ -214,8 +214,12 @@ class WastageForm extends Component
             ];
         })->values()->all();
 
-        // If order has less than 3 products, pad with empty rows to always show 3
-        $this->ensureMinProductRows();
+        // When order is selected, show only the products from that order
+        // Don't add empty rows - display exactly what's in the order
+        // If order has no products, show empty array (user can add manually)
+        if (empty($this->wastageProducts)) {
+            $this->wastageProducts = [];
+        }
     }
 
     public function updatedProductId($value, int $index): void

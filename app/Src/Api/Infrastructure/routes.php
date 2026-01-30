@@ -8,6 +8,7 @@ use App\Src\Api\Modules\DashboardController;
 use App\Src\Api\Modules\SiteManagement\OrderController;
 use App\Src\Api\Modules\StoreManagement\StoreOrderController;
 use App\Src\Api\Modules\TransportManagement\TransportManagerController;
+use App\Src\Api\Modules\WastageReturn\WastageReturnController;
 use Illuminate\Support\Facades\Route;
  
 
@@ -62,6 +63,11 @@ Route::middleware(['api'])->group(function () {
                 Route::get('get-orders', [TransportManagerController::class, 'getOrders'])->name(name: 'get-orders');
                 Route::get('get-order-details/{order_id}', [TransportManagerController::class, 'getOrderDetails'])->name('order.details');
                 Route::post('order-request/order-action', [TransportManagerController::class, 'updateDeliveryStatus'])->name('update-delivery-status');
+            });
+
+            Route::group(['prefix' => 'wastage-return', 'as' => 'wastage-return.'], function () {
+                Route::post('create', [WastageReturnController::class, 'store'])->name('create');
+                Route::get('list', [WastageReturnController::class, 'index'])->name('index');
             });
         });
     });
