@@ -27,6 +27,8 @@ class UserForm extends Component
     public string $mobile_number = '';
     public string $password = '';
     public string $password_confirmation = '';
+    public bool $showPassword = false;
+    public bool $showPasswordConfirmation = false;
     public string $role = '';
     public string $store = '';
     public string|bool|null $status = '1';
@@ -118,6 +120,16 @@ class UserForm extends Component
     public function cancel(): void
     {
         $this->redirect(route('admin.users.index'));
+    }
+
+    public function togglePasswordVisibility(): void
+    {
+        $this->showPassword = !$this->showPassword;
+    }
+
+    public function togglePasswordConfirmationVisibility(): void
+    {
+        $this->showPasswordConfirmation = !$this->showPasswordConfirmation;
     }
 
     private function getValidationRules(): array

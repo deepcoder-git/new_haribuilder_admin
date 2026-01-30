@@ -116,11 +116,21 @@
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Password <span class="text-danger">*</span>
                     </label>
-                    <input type="password" 
-                           wire:model.blur="password"
-                           class="form-control form-control-solid @error('password') is-invalid @enderror"
-                           placeholder="{{ $isEditMode ? 'Leave blank to keep current password' : 'Enter password' }}"
-                           style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;"/>
+                    <div class="input-group position-relative">
+                        <input type="{{ $showPassword ? 'text' : 'password' }}" 
+                               id="password-input"
+                               wire:model.blur="password"
+                               class="form-control form-control-solid @error('password') is-invalid @enderror"
+                               placeholder="{{ $isEditMode ? 'Leave blank to keep current password' : 'Enter password' }}"
+                               style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb; padding-right: 45px;"/>
+                        <button type="button" 
+                                wire:click="togglePasswordVisibility"
+                                class="btn btn-link position-absolute end-0 top-50 translate-middle-y pe-3 password-toggle-btn"
+                                style="border: none; background: none; z-index: 10; color: #6b7280; text-decoration: none;"
+                                title="{{ $showPassword ? 'Hide password' : 'Show password' }}">
+                            <i class="fa-solid {{ $showPassword ? 'fa-eye-slash' : 'fa-eye' }}" style="font-size: 0.875rem;"></i>
+                        </button>
+                    </div>
                     @error('password') 
                         <div class="text-danger small mt-1 d-flex align-items-center">
                             <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>
@@ -132,11 +142,21 @@
                     <label class="form-label fw-semibold text-gray-700 mb-2">
                         Confirm Password <span class="text-danger">*</span>
                     </label>
-                    <input type="password" 
-                           wire:model.blur="password_confirmation"
-                           class="form-control form-control-solid @error('password_confirmation') is-invalid @enderror"
-                           placeholder="Confirm password"
-                           style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb;"/>
+                    <div class="input-group position-relative">
+                        <input type="{{ $showPasswordConfirmation ? 'text' : 'password' }}" 
+                               id="password-confirmation-input"
+                               wire:model.blur="password_confirmation"
+                               class="form-control form-control-solid @error('password_confirmation') is-invalid @enderror"
+                               placeholder="Confirm password"
+                               style="height: 44px; border-radius: 0.5rem; border: 1px solid #e5e7eb; padding-right: 45px;"/>
+                        <button type="button" 
+                                wire:click="togglePasswordConfirmationVisibility"
+                                class="btn btn-link position-absolute end-0 top-50 translate-middle-y pe-3 password-toggle-btn"
+                                style="border: none; background: none; z-index: 10; color: #6b7280; text-decoration: none;"
+                                title="{{ $showPasswordConfirmation ? 'Hide password' : 'Show password' }}">
+                            <i class="fa-solid {{ $showPasswordConfirmation ? 'fa-eye-slash' : 'fa-eye' }}" style="font-size: 0.875rem;"></i>
+                        </button>
+                    </div>
                     @error('password_confirmation') 
                         <div class="text-danger small mt-1 d-flex align-items-center">
                             <i class="fa-solid fa-circle-exclamation me-1" style="font-size: 0.75rem;"></i>
@@ -370,6 +390,16 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
+        }
+        .password-toggle-btn {
+            transition: color 0.2s ease;
+        }
+        .password-toggle-btn:hover {
+            color: #1e3a8a !important;
+        }
+        .password-toggle-btn:focus {
+            outline: none;
+            box-shadow: none;
         }
         @media (max-width: 768px) {
             .card-body {
