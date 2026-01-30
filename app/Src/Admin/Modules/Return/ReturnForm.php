@@ -198,7 +198,10 @@ class ReturnForm extends Component
             ];
         })->values()->all();
 
-        $this->ensureMinItemRows();
+        // If order has no products, ensure at least 1 row for manual entry
+        if (empty($this->returnItems)) {
+            $this->resetItemRows(1);
+        }
     }
 
     public function updatedProductId($value, int $index): void

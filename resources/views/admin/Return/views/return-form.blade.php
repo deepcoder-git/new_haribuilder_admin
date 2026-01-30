@@ -231,14 +231,9 @@
                                             @enderror
                                         </td>
                                         <td style="padding: 0.5rem;">
-                                            <input type="text"
-                                                   wire:model.blur="returnItems.{{ $index }}.unit_type"
-                                                   class="form-control form-control-solid @error('returnItems.'.$index.'.unit_type') is-invalid @enderror"
-                                                   placeholder="Unit"
-                                                   style="height: 42px; font-size: 0.875rem;"/>
-                                            @error("returnItems.{$index}.unit_type")
-                                                <div class="text-danger small mt-1" style="font-size: 0.75rem;">{{ $message }}</div>
-                                            @enderror
+                                            <div class="form-control form-control-solid" style="background: #f9fafb; height: 42px; display: flex; align-items: center; font-size: 0.875rem;">
+                                                {{ $productModel && $productModel->unit_type ? $productModel->unit_type : '-' }}
+                                            </div>
                                         </td>
                                         <td style="padding: 0.5rem; text-align: center;">
                                             @if(count($returnItems) > 1)

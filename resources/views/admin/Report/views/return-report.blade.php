@@ -5,6 +5,13 @@
                 <h4 class="card-title fw-bold mb-0" style="color: #1e3a8a; font-size: 1.4rem;">
                     Return Report
                 </h4>
+                <button type="button" 
+                        wire:click="openCreateForm"
+                        class="btn btn-primary d-flex align-items-center px-4 fw-semibold"
+                        style="height: 44px; border-radius: 0.5rem; background: #1e3a8a; border: none; white-space: nowrap;">
+                    <i class="fa-solid fa-plus me-2"></i>
+                    Add Return Order
+                </button>
             </div>
         </div>
         <div class="card-body px-4 py-4">

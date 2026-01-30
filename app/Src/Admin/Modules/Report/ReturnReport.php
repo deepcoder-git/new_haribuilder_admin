@@ -41,6 +41,11 @@ class ReturnReport extends Component
         $this->resetPage();
     }
 
+    public function openCreateForm(): void
+    {
+        $this->redirect(route('admin.returns.create'));
+    }
+
     public function getRowsProperty()
     {
         $query = DB::table('order_return_items')
