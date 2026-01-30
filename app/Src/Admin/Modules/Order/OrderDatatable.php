@@ -347,6 +347,13 @@ class OrderDatatable extends Component
                 }
 
                 $model = Order::findOrFail($id);
+                
+                // Check if order is delivered - delivered orders cannot be modified
+                $orderStatus = $model->status?->value ?? $model->status ?? 'pending';
+                if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                    throw new \Exception('Delivered orders cannot be modified. They are read-only.');
+                }
+                
                 $currentStatus = $model->status instanceof OrderStatusEnum
                     ? $model->status
                     : (OrderStatusEnum::tryFrom((string)$model->status) ?? OrderStatusEnum::Pending);
@@ -385,6 +392,12 @@ class OrderDatatable extends Component
 
                 $userRole = $user->getRole();
                 $model = Order::findOrFail($id);
+                
+                // Check if order is delivered - delivered orders cannot be modified
+                $orderStatus = $model->status?->value ?? $model->status ?? 'pending';
+                if ($orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered') {
+                    throw new \Exception('Delivered orders cannot be modified. They are read-only.');
+                }
 
                 $statusEnum = OrderStatusEnum::tryFrom($status);
                 if (!$statusEnum) {

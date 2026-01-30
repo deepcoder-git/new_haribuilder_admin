@@ -153,6 +153,22 @@ class OrderForm extends Component
         unset($this->productStatusErrors[$type]);
     }
 
+    /**
+     * Check if an order is delivered (read-only)
+     * 
+     * @param Order|null $order
+     * @return bool
+     */
+    protected function isOrderDelivered(?Order $order): bool
+    {
+        if (!$order) {
+            return false;
+        }
+        
+        $orderStatus = $order->status?->value ?? $order->status ?? 'pending';
+        return $orderStatus === OrderStatusEnum::Delivery->value || $orderStatus === 'delivered';
+    }
+
     // Supplier search dropdown state for each row (for LPO products)
     public array $supplierSearch = [];
     public array $supplierSearchResults = [];
@@ -362,7 +378,7 @@ class OrderForm extends Component
             'rejected'       => 'rejected',
             'pending'        => 'pending',
             'outfordelivery', 'out_of_delivery', 'outofdelivery' => 'outfordelivery',
-            // orders.status uses 'delivery' for delivered orders
+            // orders.status uses 'delivered' for delivered orders
             'delivered'      => OrderStatusEnum::Delivery->value,
             'in_transit'     => 'in_transit',
             'cancelled'      => 'cancelled',
@@ -1043,6 +1059,12 @@ class OrderForm extends Component
             try {
                 $order = Order::find($this->editingId);
                 if ($order) {
+                    // Check if order is delivered - delivered orders cannot be modified
+                    if ($this->isOrderDelivered($order)) {
+                        session()->flash('error', 'Delivered orders cannot be modified. They are read-only.');
+                        return;
+                    }
+                    
                     $normalizedStatus = $this->normalizeStatusForOrder($value, $order);
                     $this->status = $normalizedStatus;
                     
@@ -1140,6 +1162,16 @@ class OrderForm extends Component
 
     public function saveInTransitDetails(): void
     {
+        // Check if order is delivered - delivered orders cannot be modified
+        if ($this->isEditMode && $this->editingId) {
+            $order = Order::find($this->editingId);
+            if ($this->isOrderDelivered($order)) {
+                session()->flash('error', 'Delivered orders cannot be modified. They are read-only.');
+                $this->closeInTransitModal();
+                return;
+            }
+        }
+        
         // Validate that both fields are provided
         $this->validate([
             'temp_driver_name' => ['required', 'string', 'max:255'],
@@ -2429,6 +2461,14 @@ class OrderForm extends Component
             return;
         }
         
+        // Check if order is delivered - delivered orders cannot be modified
+        $order = Order::find($this->editingId);
+        if ($this->isOrderDelivered($order)) {
+            session()->flash('product_status_error', 'Delivered orders cannot be modified. They are read-only.');
+            $this->closeProductInTransitModal();
+            return;
+        }
+        
         // Trim and validate driver name
         $driverName = trim($this->productTempDriverName ?? '');
         $vehicleNumber = trim($this->productTempVehicleNumber ?? '');
@@ -2573,6 +2613,14 @@ class OrderForm extends Component
         // Validate that we're in edit mode
         if (!$this->isEditMode || !$this->editingId) {
             session()->flash('product_status_error', 'Cannot update product status. Order not found.');
+            $this->closeProductOutForDeliveryModal();
+            return;
+        }
+        
+        // Check if order is delivered - delivered orders cannot be modified
+        $order = Order::find($this->editingId);
+        if ($this->isOrderDelivered($order)) {
+            session()->flash('product_status_error', 'Delivered orders cannot be modified. They are read-only.');
             $this->closeProductOutForDeliveryModal();
             return;
         }
@@ -5301,6 +5349,12 @@ class OrderForm extends Component
         
         try {
             $order = Order::findOrFail($this->editingId);
+            
+            // Check if order is delivered - delivered orders cannot be modified
+            if ($this->isOrderDelivered($order)) {
+                session()->flash('rejection_error', 'Delivered orders cannot be modified. They are read-only.');
+                return;
+            }
             $productStatus = $order->product_status ?? [];
             $hasErrors = false;
             

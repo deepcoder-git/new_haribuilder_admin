@@ -493,7 +493,7 @@ class TransportManagerController extends Controller
                 //     return new ApiErrorResponse([], 'Order must be in transit before it can be marked as delivered', 422);
                 // }
 
-                // All delivered orders now use unified 'delivery' status (no separate 'completed' status)
+                // All delivered orders now use unified 'delivered' status (no separate 'completed' status)
                 $updateData['status'] = OrderStatusEnum::Delivery->value;
                 $updateData['product_status']['workshop'] = OrderStatusEnum::Delivery->value;
             }

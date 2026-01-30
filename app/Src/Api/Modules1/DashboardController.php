@@ -135,7 +135,7 @@ class DashboardController extends Controller
                     })
                     ->count();
 
-                // Delivered orders use 'delivery' enum value in main status column
+                // Delivered orders use 'delivered' enum value in main status column
                 $delivered_orders = Order::where('is_lpo', 0)
                     ->where('status', OrderStatusEnum::Delivery->value)
                     ->whereHas('products', function ($q) {
