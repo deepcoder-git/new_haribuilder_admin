@@ -254,6 +254,15 @@ class MaterialImport implements ToCollection, WithHeadingRow, WithCustomCsvSetti
             'product (0 = no, 1 = yes)', 'product (0 = No, 1 = Yes)', 'product_0_no_1_yes',  // CSV format
             'product', 'is_product', 'is product'  // Alternative formats
         ]);
+        
+        // Skip row if is_product is blank/not provided
+        if ($isProductValue === null || trim((string)$isProductValue) === '') {
+            Log::info("Material Import - Skipping row {$rowNumber}: is_product is blank", [
+                'material_name' => $materialName,
+            ]);
+            return; // Skip this row
+        }
+        
         $isProduct = $this->parseIsProduct($isProductValue ?? 0);
 
         // Get store - try multiple possible column names
